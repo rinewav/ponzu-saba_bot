@@ -59,7 +59,12 @@ export class CleanupManager {
       let jobData = await cleanupRepo.getCleanupJob(guild.id);
 
       if (!jobData) {
-        const members = await guild.members.fetch();
+        let members;
+        try {
+          members = await guild.members.fetch();
+        } catch {
+          members = guild.members.cache;
+        }
         const memberIds = Array.from(members.keys());
         const excludedChannelIds = cleanupSettings.excludedChannels || [];
         const channels = guild.channels.cache.filter(ch => ch.isTextBased() && ch.viewable && !excludedChannelIds.includes(ch.id));

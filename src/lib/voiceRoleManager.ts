@@ -22,7 +22,13 @@ export class VoiceRoleManager {
 
       console.log(`[VoiceRole] ${guild.name} のロール状態を同期中...`);
 
-      const members = await guild.members.fetch();
+      let members;
+      try {
+        members = await guild.members.fetch();
+      } catch {
+        console.warn(`[VoiceRole] ${guild.name} のメンバー取得に失敗、キャッシュで代用します`);
+        members = guild.members.cache;
+      }
       for (const member of members.values()) {
         if (member.user.bot) continue;
 

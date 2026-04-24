@@ -13,20 +13,17 @@
   "license": "MIT",
   "description": "ぽん酢鯖管理ボット - TypeScript版",
   "dependencies": {
-    "@discordjs/opus": "^0.10.0",
-    "@discordjs/voice": "^0.18.0",
-    "@google-cloud/text-to-speech": "^6.2.0",
-    "axios": "^1.10.0",
-    "chart.js": "^4.5.0",
+    "axios": "^1.15.2",
+    "chart.js": "^4.5.1",
     "chartjs-node-canvas": "^5.0.0",
-    "discord.js": "^14.21.0",
-    "dotenv": "^17.2.0",
+    "discord.js": "^14.26.3",
+    "dotenv": "^17.4.2",
     "node-cron": "^4.2.1",
     "valid-url": "^1.0.9"
   },
   "devDependencies": {
-    "typescript": "^5.8.0",
-    "tsx": "^4.19.0",
+    "typescript": "^5.9.3",
+    "tsx": "^4.21.0",
     "@types/node": "^22.0.0",
     "@types/valid-url": "^1.0.4"
   }

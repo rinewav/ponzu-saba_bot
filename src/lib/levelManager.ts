@@ -256,7 +256,12 @@ export class LevelManager {
   }
 
   async applyRetroactiveRole(guild: import('discord.js').Guild, level: number, roleId: string): Promise<number> {
-    const members = await guild.members.fetch();
+    let members;
+    try {
+      members = await guild.members.fetch();
+    } catch {
+      members = guild.members.cache;
+    }
     let appliedCount = 0;
 
     for (const [userId, member] of members) {
