@@ -1,30 +1,30 @@
 # 🍋 ぽん酢鯖 Official Bot
 
-ぽん酢鯖の管理用 Discord ボットです。TypeScript + ESM で構築されています。
+プロアマクリエイターズコミュニティ「ぽん酢鯖」の管理用 Discord ボットです。TypeScript + ESM で構築されています。
 
 ## 機能一覧
 
-| カテゴリ | 機能 | コマンド |
-|---|---|---|
-| 🔝 レベル | メッセージ/通話XP、レベルアップ報酬ロール、ログインボーナス | `/level`, `/level-roles`, `/setup-level` |
-| 🛌 AFK | 放置検知、ニックネームPrefix、AFKチャンネル自動移動 | `/setup-afk` |
-| 👁️‍🗨️ 聞き専 | VCに紐付くテキストチャンネル自動作成/削除、ログ保存 | `/kikisen-manage`, `/kikisen-setup` |
-| 🧹 クリーンアップ | 退出メンバーのメッセージ/リアクション一括削除 | `/cleanup`, `/setup-cleanup` |
-| 🛡️ 認証 | あいことば認証、ロール自動付与 | `/setup-verification` |
-| 🛡️ 追い打ちBAN | 退出時の自動BAN | `/setup-reban` |
-| 📊 デイリー統計 | サーバー活動レポート（グラフ付き） | `/stats-now`, `/setup-dailystats` |
-| 🔔 VC通知 | 通話開始時の通知 | `/setup-vcnotify` |
-| 🎤 VCロール | 通話参加中ロール付与 | `/setup-voicerole` |
-| 🗳️ 投票リマインダー | 2時間後の再投票通知 | （自動検知） |
-| 💪 筋トレ通知 | 24時間未報告時のリマインダー | `/setup-workout` |
-| 📊 ロールパネル | セレクトメニュー式ロール選択 | `/role-panel` |
-| 👽 クロスポスト通知 | 他サーバーでの絵文字/スタンプ使用通知 | `/setup-crosspost` |
-| 📁 ファイル再アップ | 添付ファイルの自動バックアップ | `/setup-reupload` |
-| 🛡️ ウイルススキャン | URL/添付ファイルのVirusTotalスキャン | （自動検知） |
-| 🧩 テンプレート | 常に最新状態を維持するテンプレートメッセージ | `/setup-template`, `/setup-introduction`, `/setup-message-id` |
-| 📝 ログ | 各種イベントのログ記録 | `/setup-logs` |
-| ⏰ ステータスチャンネル | 日付/時刻VCチャンネルの自動更新 | （自動動作） |
-| 🔄 リロード | ボット再起動 | `/reload` |
+| カテゴリ                | 機能                                                        | コマンド                                                      |
+| ----------------------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
+| 🔝 レベル               | メッセージ/通話XP、レベルアップ報酬ロール、ログインボーナス | `/level`, `/level-roles`, `/setup-level`                      |
+| 🛌 AFK                  | 放置検知、ニックネームPrefix、AFKチャンネル自動移動         | `/setup-afk`                                                  |
+| 👁️‍🗨️ 聞き専               | VCに紐付くテキストチャンネル自動作成/削除、ログ保存         | `/kikisen-manage`, `/kikisen-setup`                           |
+| 🧹 クリーンアップ       | 退出メンバーのメッセージ/リアクション一括削除               | `/cleanup`, `/setup-cleanup`                                  |
+| 🛡️ 認証                 | あいことば認証、ロール自動付与                              | `/setup-verification`                                         |
+| 🛡️ 追い打ちBAN          | 退出時の自動BAN                                             | `/setup-reban`                                                |
+| 📊 デイリー統計         | サーバー活動レポート（グラフ付き）                          | `/stats-now`, `/setup-dailystats`                             |
+| 🔔 VC通知               | 通話開始時の通知                                            | `/setup-vcnotify`                                             |
+| 🎤 VCロール             | 通話参加中ロール付与                                        | `/setup-voicerole`                                            |
+| 🗳️ 投票リマインダー     | 2時間後の再投票通知                                         | （自動検知）                                                  |
+| 💪 筋トレ通知           | 24時間未報告時のリマインダー                                | `/setup-workout`                                              |
+| 📊 ロールパネル         | セレクトメニュー式ロール選択                                | `/role-panel`                                                 |
+| 👽 クロスポスト通知     | 他サーバーでの絵文字/スタンプ使用通知                       | `/setup-crosspost`                                            |
+| 📁 ファイル再アップ     | 添付ファイルの自動バックアップ                              | `/setup-reupload`                                             |
+| 🛡️ ウイルススキャン     | URL/添付ファイルのVirusTotalスキャン                        | （自動検知）                                                  |
+| 🧩 テンプレート         | 常に最新状態を維持するテンプレートメッセージ                | `/setup-template`, `/setup-introduction`, `/setup-message-id` |
+| 📝 ログ                 | 各種イベントのログ記録                                      | `/setup-logs`                                                 |
+| ⏰ ステータスチャンネル | 日付/時刻VCチャンネルの自動更新                             | （自動動作）                                                  |
+| 🔄 リロード             | ボット再起動                                                | `/reload`                                                     |
 
 ## 必要要件
 
@@ -36,7 +36,7 @@
 ### 1. インストール
 
 ```bash
-git clone https://github.com/<ユーザー名>/ponzubots.git
+git clone https://github.com/rinewav/ponzu-saba_bot.git
 cd ponzubots
 npm install
 ```
