@@ -2,16 +2,15 @@
   "name": "ponzubots",
   "version": "3.0.0",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "deploy": "tsx src/deploy-commands.ts",
     "typecheck": "tsc --noEmit"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "ぽん酢鯖管理ボット - TypeScript版",
   "dependencies": {
     "@discordjs/opus": "^0.10.0",
