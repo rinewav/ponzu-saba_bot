@@ -1,7 +1,7 @@
 import { ChannelType, type Client } from 'discord.js';
 
-const DATE_CHANNEL_ID = process.env.DATE_CHANNEL_ID || '1353782716226867310';
-const TIME_CHANNEL_ID = process.env.TIME_CHANNEL_ID || '1353768671717228604';
+const DATE_CHANNEL_ID = process.env.DATE_CHANNEL_ID!;
+const TIME_CHANNEL_ID = process.env.TIME_CHANNEL_ID!;
 
 function getFormattedDateTime(dateObject?: Date): { date: string; time: string } {
   const now = dateObject ?? new Date();

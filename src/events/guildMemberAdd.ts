@@ -3,8 +3,8 @@ import type { BotEvent } from '../types/index.js';
 import { miscRepo } from '../lib/repositories/index.js';
 import { CustomEmbed } from '../lib/customEmbed.js';
 
-const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID || '1312756594878054402';
-const INTRO_CHANNEL_ID = process.env.INTRO_CHANNEL_ID || '1312756594416554076';
+const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID!;
+const INTRO_CHANNEL_ID = process.env.INTRO_CHANNEL_ID!;
 
 export default {
   name: Events.GuildMemberAdd,

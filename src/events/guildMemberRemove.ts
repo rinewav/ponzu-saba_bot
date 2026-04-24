@@ -2,7 +2,7 @@ import { Events, type GuildMember } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { miscRepo } from '../lib/repositories/index.js';
 
-const LEAVE_CHANNEL_ID = process.env.LEAVE_CHANNEL_ID || '1312756594416554076';
+const LEAVE_CHANNEL_ID = process.env.LEAVE_CHANNEL_ID!;
 
 export default {
   name: Events.GuildMemberRemove,
