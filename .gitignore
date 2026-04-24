@@ -10,4 +10,4 @@ data/*.json
 temp/
 google-credentials.json
 *.log
-*.tmp
+*.tmp.DS_Store
