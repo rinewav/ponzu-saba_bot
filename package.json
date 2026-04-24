@@ -1,0 +1,34 @@
+{
+  "name": "ponzubots",
+  "version": "3.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "deploy": "tsx src/deploy-commands.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "ぽん酢鯖管理ボット - TypeScript版",
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.18.0",
+    "@google-cloud/text-to-speech": "^6.2.0",
+    "axios": "^1.10.0",
+    "chart.js": "^4.5.0",
+    "chartjs-node-canvas": "^5.0.0",
+    "discord.js": "^14.21.0",
+    "dotenv": "^17.2.0",
+    "node-cron": "^4.2.1",
+    "valid-url": "^1.0.9"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0",
+    "@types/valid-url": "^1.0.4"
+  }
+}
