@@ -11,7 +11,7 @@ export default {
 
     if (oldMember.nickname === newMember.nickname) return;
 
-    const newNickname = newMember.nickname || newMember.user.displayName;
+    const newNickname = newMember.nickname ?? newMember.user.displayName;
 
     if (newNickname.startsWith(PRE_AFK_PREFIX) && !afkManager.isManagedByAfk(newMember.id)) {
       const originalNickname = oldMember.nickname ?? null;
