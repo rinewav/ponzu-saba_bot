@@ -34,7 +34,7 @@ export default {
     if (interaction.isButton()) {
       const customId = interaction.customId;
 
-      if (customId === 'sv_back' || customId.startsWith('sv_delq_')) {
+      if (customId === 'sv_back' || customId.startsWith('sv_delq_') || customId === 'sv_form_add' || customId === 'sv_form_reset' || customId.startsWith('sv_formdel_')) {
         await handleSetupButton(interaction);
         return;
       }
