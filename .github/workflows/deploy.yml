@@ -14,6 +14,9 @@ jobs:
         working-directory: ${{ env.BOT_DIR }}
         run: git pull origin main
 
+      - name: Stop Bot (release file locks)
+        run: pm2 stop ponzubot || true
+
       - name: Install dependencies
         working-directory: ${{ env.BOT_DIR }}
         run: npm ci
@@ -26,6 +29,6 @@ jobs:
         working-directory: ${{ env.BOT_DIR }}
         run: npm run deploy
 
-      - name: Restart Bot with PM2
+      - name: Start Bot
         working-directory: ${{ env.BOT_DIR }}
         run: pm2 restart ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
