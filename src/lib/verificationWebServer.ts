@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { readFileSync, existsSync } from 'node:fs';
 import { createServer as createHttpsServer } from 'node:https';
 import { join } from 'node:path';
+import axios from 'axios';
 import { verificationManager } from './verificationManager.js';
 import { verificationRepo } from './repositories/index.js';
 import { NDA_TEXT, generateNdaPdf } from './ndaPdfGenerator.js';
@@ -9,6 +10,7 @@ import { NDA_TEXT, generateNdaPdf } from './ndaPdfGenerator.js';
 const getClientId = () => process.env.CLIENT_ID ?? '';
 const getClientSecret = () => process.env.DISCORD_CLIENT_SECRET ?? '';
 const getNdaPublicUrl = () => process.env.NDA_PUBLIC_URL ?? 'http://localhost:3001';
+const getProxyCheckKey = () => process.env.PROXYCHECK_API_KEY ?? '';
 
 const HTML_HEAD = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ぽん酢鯖 - NDA署名</title><style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
@@ -38,6 +40,28 @@ function getClientIp(req: Request): string {
   if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
   if (Array.isArray(forwarded)) return forwarded[0].trim();
   return req.ip ?? req.socket.remoteAddress ?? 'unknown';
+}
+
+async function isVpnOrProxy(ip: string): Promise<boolean> {
+  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip === '::1') return false;
+  const apiKey = getProxyCheckKey();
+  if (!apiKey) return false;
+
+  try {
+    const url = `https://proxycheck.io/v2/${ip}?key=${apiKey}&risk=1&vpn=1`;
+    const res = await axios.get(url, { timeout: 8000 });
+    const data = res.data as { status?: string; [ip: string]: unknown };
+    if (data.status !== 'ok') return false;
+    const info = data[ip] as { proxy?: string; type?: string; risk?: number } | undefined;
+    if (!info) return false;
+    if (info.proxy === 'yes') return true;
+    if (info.type && info.type !== '' && info.type !== 'Not a Proxy/Direct Connection') return true;
+    if (typeof info.risk === 'number' && info.risk >= 66) return true;
+    return false;
+  } catch (error) {
+    console.error('[NDA] proxycheck.io チェックエラー:', error instanceof Error ? error.message : String(error));
+    return false;
+  }
 }
 
 export class VerificationWebServer {
@@ -142,6 +166,15 @@ ${HTML_FOOT}`);
       }
 
       const ip = getClientIp(req);
+
+      if (await isVpnOrProxy(ip)) {
+        console.warn(`[NDA] VPN/Proxy検出: IP=${ip}, userId=${tokenInfo.userId}`);
+        res.status(403).send(this.renderError(
+          'VPNまたはプロキシ経由の接続が検出されました。\nNDA署名を行うには、VPN/プロキシを無効にしてアクセスし直してください。',
+        ));
+        return;
+      }
+
       oauthSessions.set(token, {
         email: userData.email,
         userTag: userData.username,
@@ -157,7 +190,7 @@ ${HTML_FOOT}`);
 
   private async handleSign(req: Request<{ token: string }>, res: Response): Promise<void> {
     const { token } = req.params;
-    const tokenInfo = verificationManager.consumeNdaToken(token);
+    const tokenInfo = verificationManager.getNdaTokenInfo(token);
 
     if (!tokenInfo) {
       res.status(400).json({ success: false, error: '無効または期限切れのトークンです。' });
@@ -173,6 +206,14 @@ ${HTML_FOOT}`);
     try {
       const session = oauthSessions.get(token);
       const ip = session?.ip ?? getClientIp(req);
+
+      if (await isVpnOrProxy(ip)) {
+        console.warn(`[NDA] 署名時VPN/Proxy検出: IP=${ip}, userId=${tokenInfo.userId}`);
+        res.status(403).json({ success: false, error: 'VPNまたはプロキシ経由の接続が検出されました。VPN/プロキシを無効にしてやり直してください。' });
+        return;
+      }
+
+      verificationManager.consumeNdaToken(token);
 
       application.ndaEmail = session?.email;
       application.ndaIpAddress = ip;
