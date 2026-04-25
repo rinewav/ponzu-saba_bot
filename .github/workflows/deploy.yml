@@ -17,10 +17,15 @@ jobs:
       - name: Stop Bot (release file locks)
         continue-on-error: true
         run: pm2 stop ponzubot
+        shell: powershell
+
+      - name: Wait for process cleanup
+        run: Start-Sleep -Seconds 3
+        shell: powershell
 
       - name: Install dependencies
         working-directory: ${{ env.BOT_DIR }}
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: Type check
         working-directory: ${{ env.BOT_DIR }}
