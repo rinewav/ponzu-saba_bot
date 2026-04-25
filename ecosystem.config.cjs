@@ -4,7 +4,7 @@ module.exports = {
       name: 'ponzubot',
       script: 'node_modules/.bin/tsx',
       args: 'src/index.ts',
-      cwd: 'F:/git/ponzu-sababot',
+      cwd: 'F:/git/ponzu-sababot/bot',
       env_production: {
         NODE_ENV: 'production',
       },
