@@ -20,27 +20,27 @@ export class LogManager {
     }
   }
 
-  handleChannelCreate(channel: import('discord.js').NonThreadGuildBasedChannel): void {
+  async handleChannelCreate(channel: import('discord.js').NonThreadGuildBasedChannel): Promise<void> {
     if (!channel.guild) return;
     const embed = new CustomEmbed()
       .setColor(0x00FF00)
       .setTitle('チャンネル作成')
       .setDescription(`**チャンネル名:** ${channel}\n**種類:** ${channel.type}\n**ID:** ${channel.id}`)
       .setTimestamp();
-    this.sendLog(channel.guild.id, embed);
+    await this.sendLog(channel.guild.id, embed);
   }
 
-  handleChannelDelete(channel: import('discord.js').NonThreadGuildBasedChannel): void {
+  async handleChannelDelete(channel: import('discord.js').NonThreadGuildBasedChannel): Promise<void> {
     if (!channel.guild) return;
     const embed = new CustomEmbed()
       .setColor(0xFF0000)
       .setTitle('チャンネル削除')
       .setDescription(`**チャンネル名:** \`#${channel.name}\`\n**種類:** ${channel.type}\n**ID:** ${channel.id}`)
       .setTimestamp();
-    this.sendLog(channel.guild.id, embed);
+    await this.sendLog(channel.guild.id, embed);
   }
 
-  handleGuildMemberAdd(member: GuildMember): void {
+  async handleGuildMemberAdd(member: GuildMember): Promise<void> {
     const embed = new CustomEmbed(member.user)
       .setColor(0x00FF00)
       .setTitle('メンバー参加')
@@ -48,17 +48,17 @@ export class LogManager {
       .setDescription(`${member} **${member.user.tag}** がサーバーに参加しました。`)
       .addFields({ name: 'アカウント作成日', value: member.user.createdAt.toLocaleString('ja-JP') })
       .setTimestamp();
-    this.sendLog(member.guild.id, embed);
+    await this.sendLog(member.guild.id, embed);
   }
 
-  handleGuildMemberRemove(member: GuildMember): void {
+  async handleGuildMemberRemove(member: GuildMember): Promise<void> {
     const embed = new CustomEmbed(member.user)
       .setColor(0xFF0000)
       .setTitle('メンバー退出')
       .setThumbnail(member.user.displayAvatarURL())
       .setDescription(`${member.user.tag} がサーバーから退出しました。`)
       .setTimestamp();
-    this.sendLog(member.guild.id, embed);
+    await this.sendLog(member.guild.id, embed);
   }
 
   async handleMessageDelete(message: Message): Promise<void> {
@@ -95,10 +95,10 @@ export class LogManager {
         { name: '内容', value: `\`\`\`${content.slice(0, 1000)}\`\`\`` },
       )
       .setTimestamp();
-    this.sendLog(message.guild.id, embed);
+    await this.sendLog(message.guild.id, embed);
   }
 
-  handleMessageUpdate(oldMessage: Message, newMessage: Message): void {
+  async handleMessageUpdate(oldMessage: Message, newMessage: Message): Promise<void> {
     if (!newMessage.guild || newMessage.author.bot || oldMessage.content === newMessage.content) return;
     const embed = new CustomEmbed(newMessage.author)
       .setColor(0x0000FF)
@@ -111,28 +111,28 @@ export class LogManager {
         { name: '変更後', value: `\`\`\`${newMessage.content || '(なし)'}\`\`\`` },
       )
       .setTimestamp();
-    this.sendLog(newMessage.guild.id, embed);
+    await this.sendLog(newMessage.guild.id, embed);
   }
 
-  handleRoleCreate(role: Role): void {
+  async handleRoleCreate(role: Role): Promise<void> {
     const embed = new CustomEmbed()
       .setColor(0x00FF00)
       .setTitle('ロール作成')
       .setDescription(`**ロール名:** ${role}\n**ID:** ${role.id}`)
       .setTimestamp();
-    this.sendLog(role.guild.id, embed);
+    await this.sendLog(role.guild.id, embed);
   }
 
-  handleRoleDelete(role: Role): void {
+  async handleRoleDelete(role: Role): Promise<void> {
     const embed = new CustomEmbed()
       .setColor(0xFF0000)
       .setTitle('ロール削除')
       .setDescription(`**ロール名:** \`@${role.name}\`\n**ID:** ${role.id}`)
       .setTimestamp();
-    this.sendLog(role.guild.id, embed);
+    await this.sendLog(role.guild.id, embed);
   }
 
-  handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): void {
+  async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): Promise<void> {
     const member = newState.member;
     if (!member) return;
 
@@ -157,10 +157,10 @@ export class LogManager {
       .setTitle('ボイスチャットログ')
       .setDescription(description)
       .setTimestamp();
-    this.sendLog(newState.guild.id, embed);
+    await this.sendLog(newState.guild.id, embed);
   }
 
-  handleGuildMemberUpdate(oldMember: GuildMember, newMember: GuildMember): void {
+  async handleGuildMemberUpdate(oldMember: GuildMember, newMember: GuildMember): Promise<void> {
     if (oldMember.nickname !== newMember.nickname) {
       const embed = new CustomEmbed(newMember.user)
         .setColor(0x0000FF)
@@ -172,32 +172,32 @@ export class LogManager {
           { name: '変更後', value: `\`${newMember.nickname || 'なし'}\``, inline: true },
         )
         .setTimestamp();
-      this.sendLog(newMember.guild.id, embed);
+      await this.sendLog(newMember.guild.id, embed);
     }
 
     const oldRoles = oldMember.roles.cache;
     const newRoles = newMember.roles.cache;
-    if (oldRoles.size !== newRoles.size) {
+    const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
+    const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
+    if (addedRoles.size > 0 || removedRoles.size > 0) {
       const embed = new CustomEmbed(newMember.user)
         .setColor(0x0000FF)
         .setTitle('ロール変更')
         .setThumbnail(newMember.user.displayAvatarURL())
         .setDescription(`${newMember} のロールが変更されました。`);
 
-      const addedRoles = newRoles.filter(role => !oldRoles.has(role.id));
       if (addedRoles.size > 0) {
         embed.addFields({ name: '付与されたロール', value: addedRoles.map(r => r.toString()).join(' ') });
       }
 
-      const removedRoles = oldRoles.filter(role => !newRoles.has(role.id));
       if (removedRoles.size > 0) {
         embed.addFields({ name: '剥奪されたロール', value: removedRoles.map(r => r.toString()).join(' ') });
       }
-      this.sendLog(newMember.guild.id, embed);
+      await this.sendLog(newMember.guild.id, embed);
     }
   }
 
-  handleUserUpdate(oldUser: import('discord.js').User, newUser: import('discord.js').User): void {
+  async handleUserUpdate(oldUser: import('discord.js').User, newUser: import('discord.js').User): Promise<void> {
     if (oldUser.username !== newUser.username) {
       for (const guild of this.client!.guilds.cache.values()) {
         if (guild.members.cache.has(newUser.id)) {
@@ -211,7 +211,7 @@ export class LogManager {
               { name: '変更後', value: `\`${newUser.tag}\``, inline: true },
             )
             .setTimestamp();
-          this.sendLog(guild.id, embed);
+          await this.sendLog(guild.id, embed);
         }
       }
     }

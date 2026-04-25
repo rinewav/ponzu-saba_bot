@@ -59,6 +59,7 @@ export class ReuploadManager {
           method: 'get',
           url: fileInfo.url,
           responseType: 'arraybuffer',
+          timeout: 30000,
         });
 
         await writeFile(tempFilePath, Buffer.from(response.data));

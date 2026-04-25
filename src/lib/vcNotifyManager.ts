@@ -35,7 +35,9 @@ export class VcNotifyManager {
 
       console.log(`[VCNotify] #${newChannel.name} でタイマーを開始します（トリガー: ${member.user.tag}）。`);
       const timer = setTimeout(() => {
-        this.sendNotification(newChannel, member!);
+        this.sendNotification(newChannel, member!).catch((err) => {
+          console.error('[VCNotify] 通知送信中にエラーが発生しました:', err);
+        });
         this.activeTimers.delete(newChannel.id);
       }, 10000);
 

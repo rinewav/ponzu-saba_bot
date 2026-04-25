@@ -33,6 +33,9 @@ export class VirusTotalManager {
 
   constructor() {
     this.apiKey = process.env.VIRUSTOTAL_API_KEY ?? '';
+    if (!this.apiKey) {
+      console.warn('[VirusTotal] VIRUSTOTAL_API_KEY が設定されていません。URL/ファイルスキャン機能は無効になります。');
+    }
   }
 
   initialize(_client: Client): void {

@@ -131,7 +131,7 @@ export class LevelManager {
         }
         const voiceState = currentMember.voice;
         if (voiceState.deaf && !voiceState.streaming && !voiceState.selfVideo) return;
-        this.awardXp(member, (levelSettings?.xpPerSecondVoice || 0.15) * 10);
+        this.awardXp(currentMember, (levelSettings?.xpPerSecondVoice || 0.15) * 10);
       }, 10000);
       this.voiceIntervals.set(member.id, interval);
     };

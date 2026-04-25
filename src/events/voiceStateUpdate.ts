@@ -14,7 +14,7 @@ export default {
 
     await kikisenManager.handleVoiceStateUpdate(oldState, newState);
     await levelManager.handleVoiceState(oldState, newState);
-    afkManager.handleVoiceStateUpdate(oldState, newState);
+    await afkManager.handleVoiceStateUpdate(oldState, newState);
     await voiceRoleManager.handleVoiceStateUpdate(oldState, newState);
     await vcNotifyManager.handleVoiceStateUpdate(oldState, newState);
     await dailyStatsManager.trackVoiceState(oldState, newState);

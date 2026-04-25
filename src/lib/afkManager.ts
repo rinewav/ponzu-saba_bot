@@ -196,8 +196,8 @@ export class AfkManager {
 
       const member = await guild.members.fetch(userId).catch(() => null);
       if (!member || !member.voice.channel) {
-        if (userData.isPreAfk) {
-          await this.restoreNickname(member!, userData.originalNickname);
+        if (member && userData.isPreAfk) {
+          await this.restoreNickname(member, userData.originalNickname);
         }
         this.trackedUsers.delete(userId);
         continue;

@@ -26,6 +26,7 @@ export class DailyStatsManager {
   private restoreVoiceSessions(): void {
     if (!this.client) return;
     for (const guild of this.client.guilds.cache.values()) {
+      void guild.members.fetch({ withPresences: false }).catch(() => {});
       for (const member of guild.members.cache.values()) {
         if (member.voice.channel) {
           this.currentVoiceSessions.set(member.id, {
