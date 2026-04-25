@@ -18,7 +18,7 @@ import {
   EmbedBuilder,
   AttachmentBuilder,
 } from 'discord.js';
-import { verificationRepo } from './repositories/index.js';
+import { verificationRepo, miscRepo } from './repositories/index.js';
 import { CustomEmbed } from './customEmbed.js';
 import { generateNdaPdf } from './ndaPdfGenerator.js';
 import type { VerificationApplication, VerificationQuestion, VerificationSettings } from '../types/index.js';
@@ -631,6 +631,27 @@ export class VerificationManager {
 
     this.ndaTokens.delete(application.ndaToken ?? '');
     await this.archiveApplication(application, true);
+
+    if (member) {
+      const welcomeChannelId = process.env.WELCOME_CHANNEL_ID;
+      const introChannelId = process.env.INTRO_CHANNEL_ID;
+      if (welcomeChannelId) {
+        const welcomeChannel = await guild.channels.fetch(welcomeChannelId).catch(() => null) as TextChannel | null;
+        if (welcomeChannel) {
+          const welcomeEmbed = new CustomEmbed(member.user)
+            .setTitle('🎉 新しいメンバーが参加しました！')
+            .setDescription(
+              `ようこそ ${member} ！ぽん酢鯖へ参加いただきありがとうございます。` +
+              (introChannelId ? `\n<#${introChannelId}> で自己紹介をしてみましょう！` : ''),
+            )
+            .setThumbnail(member.user.displayAvatarURL())
+            .setColor(0x00FF00);
+
+          const welcomeMessage = await welcomeChannel.send({ embeds: [welcomeEmbed] });
+          await miscRepo.setWelcomeMessageId(member.id, welcomeMessage.id);
+        }
+      }
+    }
 
     console.log(`[Verification] ${member?.user.tag ?? application.userId} のNDA署名が完了し、認証されました。`);
   }
