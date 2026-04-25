@@ -42,21 +42,31 @@ function getClientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? 'unknown';
 }
 
+function normalizeIp(ip: string): string {
+  const ipv4Mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (ipv4Mapped) return ipv4Mapped[1];
+  if (ip.startsWith('[') && ip.endsWith(']')) return ip.slice(1, -1);
+  return ip;
+}
+
 async function isVpnOrProxy(ip: string): Promise<boolean> {
-  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip === '::1') return false;
+  const cleanIp = normalizeIp(ip);
+  if (!cleanIp || cleanIp === 'unknown' || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.') || cleanIp.startsWith('172.')) return false;
+
   const apiKey = getProxyCheckKey();
   if (!apiKey) return false;
 
   try {
-    const url = `https://proxycheck.io/v2/${ip}?key=${apiKey}&risk=1&vpn=1`;
+    const url = `https://proxycheck.io/v2/${cleanIp}?key=${apiKey}&risk=1&vpn=1`;
     const res = await axios.get(url, { timeout: 8000 });
-    const data = res.data as { status?: string; [ip: string]: unknown };
+    const data = res.data as { status?: string; [key: string]: unknown };
     if (data.status !== 'ok') return false;
-    const info = data[ip] as { proxy?: string; type?: string; risk?: number } | undefined;
+    const info = data[cleanIp] as { proxy?: string; type?: string; risk?: number } | undefined;
     if (!info) return false;
+
+    console.log(`[NDA] proxycheck result for ${cleanIp}: proxy=${info.proxy}, type=${info.type}, risk=${info.risk}`);
+
     if (info.proxy === 'yes') return true;
-    if (info.type && info.type !== '' && info.type !== 'Not a Proxy/Direct Connection') return true;
-    if (typeof info.risk === 'number' && info.risk >= 66) return true;
     return false;
   } catch (error) {
     console.error('[NDA] proxycheck.io チェックエラー:', error instanceof Error ? error.message : String(error));
