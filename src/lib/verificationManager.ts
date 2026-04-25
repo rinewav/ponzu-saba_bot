@@ -668,6 +668,39 @@ export class VerificationManager {
     return info;
   }
 
+  async resetUserApplication(guildId: string, userId: string): Promise<{ deletedApps: number; closedTickets: string[] }> {
+    this.activeQuizzes.delete(userId);
+
+    const tokenEntries = [...this.ndaTokens.entries()];
+    for (const [token, info] of tokenEntries) {
+      if (info.userId === userId && info.guildId === guildId) {
+        this.ndaTokens.delete(token);
+      }
+    }
+
+    const applications = verificationRepo.getApplicationsByUser(guildId, userId);
+    const active = applications.filter(a => a.status !== 'rejected' && a.status !== 'completed');
+
+    const closedTickets: string[] = [];
+    for (const app of active) {
+      if (app.ticketChannelId) {
+        try {
+          const guild = await this.client!.guilds.fetch(guildId);
+          const channel = await guild.channels.fetch(app.ticketChannelId).catch(() => null) as TextChannel | null;
+          if (channel) {
+            await channel.delete('申請リセットによりチケットを削除');
+            closedTickets.push(app.ticketChannelId);
+          }
+        } catch {
+          // channel already gone
+        }
+      }
+      await verificationRepo.deleteApplication(app.id);
+    }
+
+    return { deletedApps: active.length, closedTickets };
+  }
+
   private async archiveApplication(application: VerificationApplication, approved: boolean): Promise<void> {
     const settings = await verificationRepo.getVerificationSettings(application.guildId);
     if (!settings?.archiveChannelId) return;
