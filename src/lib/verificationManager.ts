@@ -638,10 +638,13 @@ export class VerificationManager {
       if (welcomeChannelId) {
         const welcomeChannel = await guild.channels.fetch(welcomeChannelId).catch(() => null) as TextChannel | null;
         if (welcomeChannel) {
+          await guild.members.fetch({ withPresences: false });
+          const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
           const welcomeEmbed = new CustomEmbed(member.user)
             .setTitle('🎉 新しいメンバーが参加しました！')
             .setDescription(
-              `ようこそ ${member} ！ぽん酢鯖へ参加いただきありがとうございます。` +
+              `${member} さん、ぽん酢鯖へようこそ！\n` +
+              `現在のサーバー人数: **${memberCount}人**` +
               (introChannelId ? `\n<#${introChannelId}> で自己紹介をしてみましょう！` : ''),
             )
             .setThumbnail(member.user.displayAvatarURL())
