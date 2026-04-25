@@ -35,6 +35,8 @@ export class VirusTotalManager {
     this.apiKey = process.env.VIRUSTOTAL_API_KEY ?? '';
     if (!this.apiKey) {
       console.warn('[VirusTotal] VIRUSTOTAL_API_KEY が設定されていません。URL/ファイルスキャン機能は無効になります。');
+    } else {
+      console.log(`[VirusTotal] API Key設定済み (${this.apiKey.slice(0, 8)}...)`);
     }
   }
 
@@ -43,6 +45,7 @@ export class VirusTotalManager {
   }
 
   async getUrlReport(url: string): Promise<ScanResult | null> {
+    if (!this.apiKey) return null;
     if (this.urlScanCache.has(url)) {
       console.log(`[VirusTotal] キャッシュからURLの結果を返しました: ${url}`);
       return this.urlScanCache.get(url)!;

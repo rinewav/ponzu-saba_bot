@@ -39,6 +39,8 @@ export default {
 
     if (urls.length === 0) return;
 
+    console.log(`[VirusScan] ${message.author.tag} のメッセージから ${urls.length} 件のURLを検出: ${urls.join(', ')}`);
+
     const scanResults: { url: string; malicious: number; suspicious: number; harmless: number; undetected: number }[] = [];
 
     for (const url of urls) {
@@ -51,6 +53,8 @@ export default {
           harmless: result.stats.harmless,
           undetected: result.stats.undetected,
         });
+      } else {
+        console.warn(`[VirusScan] URLスキャン結果が取得できませんでした: ${url}`);
       }
     }
 
@@ -73,6 +77,19 @@ export default {
 
         await message.channel.send({ embeds: [embed] }).catch(console.error);
       }
+    } else if (message.channel.isSendable()) {
+      const safeUrls = scanResults.map(r => `・\`${r.url.slice(0, 80)}\``).join('\n');
+      const embed = new CustomEmbed()
+        .setTitle('✅ URLスキャン完了')
+        .setColor(0x00FF00)
+        .setDescription(`**対象:**\n${safeUrls}\n\n脅威は検出されませんでした。`)
+        .addFields(
+          { name: 'スキャン数', value: `${scanResults.length}`, inline: true },
+          { name: '結果', value: '安全', inline: true },
+        )
+        .setTimestamp();
+
+      await message.channel.send({ embeds: [embed] }).catch(console.error);
     }
   },
 } satisfies BotEvent;
