@@ -149,7 +149,7 @@ data/                           # 実行時データ（JSON、Git管理外）
 
 ## ライセンスについて
 
-Copyright (c) 2026 ぽん酢鯖, All Rights rights reserved.
+Copyright (c) 2026 りね（ぽん酢鯖）, All Rights Reserved.
 
 このリポジトリは、クリエイターズコミュニティサーバー「ぽん酢鯖」の透明性を上げる目的、及び作者「りね」のポートフォリオとしてソースコードを公開しているものです。
 オープンソースライセンスは付与しておらず、すべての著作権は作者に帰属します。
@@ -164,3 +164,19 @@ Copyright (c) 2026 ぽん酢鯖, All Rights rights reserved.
 - コードの一部または全部の無断使用、複製、改変、再配布
 - ご自身のDiscordサーバー等への本ボットの導入・運用
 - このコードを流用して作成した派生物の公開や商用利用
+
+## 使用ライブラリ・クレジット
+
+このプロジェクトの開発にあたり、以下の主要なオープンソースソフトウェアおよびライブラリを使用しています。各ライブラリの作者およびコミュニティに深く感謝いたします。
+
+- **[discord.js](https://discord.js.org/)** (Apache-2.0)
+- **[express](https://expressjs.com/)** (MIT)
+- **[pdfkit](https://pdfkit.org/)** (MIT)
+- **[chart.js](https://www.chartjs.org/)** (MIT)
+- **[chartjs-node-canvas](https://github.com/Sean-Bradley/Chartjs-Node-Canvas)** (MIT)
+- **[node-fetch](https://github.com/node-fetch/node-fetch)** (MIT)
+- **[dotenv](https://github.com/motdotla/dotenv)** (BSD-2-Clause)
+- **[tsx](https://github.com/privatenumber/tsx)** (MIT)
+- **[typescript](https://www.typescriptlang.org/)** (Apache-2.0)
+
+その他の依存ライブラリについては `package.json` および `package-lock.json` を参照してください。
