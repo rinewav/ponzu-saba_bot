@@ -485,7 +485,7 @@ export class VerificationManager {
     console.log(`[Verification] ${application.userId} の申請をアーカイブのみで処理しました。`);
   }
 
-  private async createTicketChannel(application: VerificationApplication): Promise<void> {
+  async createTicketChannel(application: VerificationApplication): Promise<void> {
     const settings = await verificationRepo.getVerificationSettings(application.guildId);
     if (!settings) return;
 
@@ -500,7 +500,7 @@ export class VerificationManager {
     application.status = 'nda_pending';
     await verificationRepo.setApplication(application.id, application);
 
-    const channelName = `ticket-${member.user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    const channelName = `ticket-${application.userId}`;
 
     const channel = await guild.channels.create({
       name: channelName,
@@ -593,6 +593,7 @@ export class VerificationManager {
           const pdfBuffer = await generateNdaPdf({
             displayName: application.displayName,
             userTag: application.ndaUserTag ?? '不明',
+            discordId: application.userId,
             email: application.ndaEmail,
             ipAddress: application.ndaIpAddress ?? '不明',
             signedAt,

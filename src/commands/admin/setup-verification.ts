@@ -1,306 +1,234 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, type ChatInputCommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import type { BotCommand, VerificationSettings } from '../../types/index.js';
+import {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ChannelType,
+  type ChatInputCommandInteraction,
+  type StringSelectMenuInteraction,
+  type ModalSubmitInteraction,
+  type ButtonInteraction,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  type TextChannel,
+} from 'discord.js';
+import { randomUUID } from 'node:crypto';
+import type { BotCommand, VerificationSettings, VerificationQuestion } from '../../types/index.js';
 import { verificationRepo } from '../../lib/repositories/index.js';
 import { CustomEmbed } from '../../lib/customEmbed.js';
-import { randomUUID } from 'node:crypto';
 
 export const data = new SlashCommandBuilder()
   .setName('setup-verification')
   .setDescription('【管理者のみ】参加認証システムの設定を行います。')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-  .addSubcommand(sub =>
-    sub.setName('enable').setDescription('参加認証システムを有効にします。'),
-  )
-  .addSubcommand(sub =>
-    sub.setName('disable').setDescription('参加認証システムを無効にします。'),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-welcome-channel')
-      .setDescription('はじめにチャンネルを設定します。')
-      .addChannelOption(opt =>
-        opt.setName('channel').setDescription('はじめにチャンネル').setRequired(true).addChannelTypes(ChannelType.GuildText),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-role')
-      .setDescription('認証済みロールを設定します。')
-      .addRoleOption(opt =>
-        opt.setName('role').setDescription('認証後に付与するロール').setRequired(true),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-staff-role')
-      .setDescription('運営ロールを設定します。')
-      .addRoleOption(opt =>
-        opt.setName('role').setDescription('申請レビュー権限を持つロール').setRequired(true),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-review-channel')
-      .setDescription('運営用レビューチャンネルを設定します。')
-      .addChannelOption(opt =>
-        opt.setName('channel').setDescription('運営専用チャンネル').setRequired(true).addChannelTypes(ChannelType.GuildText),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-archive-channel')
-      .setDescription('アーカイブチャンネルを設定します。')
-      .addChannelOption(opt =>
-        opt.setName('channel').setDescription('アーカイブ用チャンネル').setRequired(true).addChannelTypes(ChannelType.GuildText),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-ticket-category')
-      .setDescription('チケットチャンネルを作成するカテゴリを設定します。')
-      .addChannelOption(opt =>
-        opt.setName('category').setDescription('チケット用カテゴリ').setRequired(true).addChannelTypes(ChannelType.GuildCategory),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-nda-url')
-      .setDescription('NDA署名ページのURLを設定します。')
-      .addStringOption(opt =>
-        opt.setName('url').setDescription('例: https://nda.ponzu-saba.com').setRequired(true),
-      ),
-  )
-  .addSubcommand(sub =>
-    sub.setName('add-question')
-      .setDescription('クイズ問題を追加します。')
-      .addStringOption(opt => opt.setName('question').setDescription('問題文').setRequired(true))
-      .addStringOption(opt => opt.setName('option1').setDescription('選択肢1（正解）').setRequired(true))
-      .addStringOption(opt => opt.setName('option2').setDescription('選択肢2').setRequired(true))
-      .addStringOption(opt => opt.setName('option3').setDescription('選択肢3').setRequired(true))
-      .addStringOption(opt => opt.setName('option4').setDescription('選択肢4').setRequired(true)),
-  )
-  .addSubcommand(sub =>
-    sub.setName('remove-question')
-      .setDescription('クイズ問題を削除します。')
-      .addStringOption(opt => opt.setName('id').setDescription('問題ID（list-questionsで確認）').setRequired(true)),
-  )
-  .addSubcommand(sub =>
-    sub.setName('list-questions').setDescription('クイズ問題一覧を表示します。'),
-  )
-  .addSubcommand(sub =>
-    sub.setName('set-quiz-count')
-      .setDescription('クイズの出題数を設定します。')
-      .addIntegerOption(opt => opt.setName('count').setDescription('出題数（1以上）').setRequired(true).setMinValue(1)),
-  )
-  .addSubcommand(sub =>
-    sub.setName('send-welcome-message')
-      .setDescription('はじめにチャンネルにボタン付きウェルカムメッセージを送信します。'),
-  )
-  .addSubcommand(sub =>
-    sub.setName('show-config').setDescription('現在の設定一覧を表示します。'),
-  )
-  .addSubcommand(sub =>
-    sub.setName('search')
-      .setDescription('ユーザーの申請状況を検索します。')
-      .addStringOption(opt => opt.setName('user-id').setDescription('DiscordユーザーID').setRequired(true)),
-  );
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  const subcommand = interaction.options.getSubcommand();
-  const embed = new CustomEmbed(interaction.user);
+  await sendSetupMenu(interaction);
+}
+
+async function getSettings(guildId: string): Promise<VerificationSettings> {
+  return (await verificationRepo.getVerificationSettings(guildId)) ?? {};
+}
+
+async function saveSettings(guildId: string, settings: VerificationSettings): Promise<void> {
+  await verificationRepo.setVerificationSettings(guildId, settings);
+}
+
+async function sendSetupMenu(
+  interaction: ChatInputCommandInteraction | StringSelectMenuInteraction | ButtonInteraction,
+): Promise<void> {
+  const guildId = interaction.guild!.id;
+  const settings = await getSettings(guildId);
+
+  const ch = (id?: string) => id ? `<#${id}>` : '未設定';
+  const role = (id?: string) => id ? `<@&${id}>` : '未設定';
+
+  const embed = new CustomEmbed(interaction.user)
+    .setColor(0xFFAA00)
+    .setTitle('⚙️ 参加認証システム設定')
+    .setDescription(
+      `システム: ${settings.enabled ? '✅ 有効' : '❌ 無効'}\n` +
+      `はじめにチャンネル: ${ch(settings.welcomeChannelId)}\n` +
+      `認証済みロール: ${role(settings.verifiedRoleId)}\n` +
+      `運営ロール: ${role(settings.staffRoleId)}\n` +
+      `レビューチャンネル: ${ch(settings.reviewChannelId)}\n` +
+      `アーカイブチャンネル: ${ch(settings.archiveChannelId)}\n` +
+      `チケットカテゴリ: ${ch(settings.ticketCategoryId)}\n` +
+      `クイズ出題数: ${settings.quizPassCount ?? 3} / 登録問題数: ${settings.questions?.length ?? 0}\n` +
+      `バイパス人数: ${settings.bypassList?.length ?? 0}`,
+    );
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('sv_menu')
+    .setPlaceholder('設定項目を選択...')
+    .addOptions([
+      { label: 'システム ON/OFF', description: '認証システムの有効/無効を切り替え', value: 'toggle', emoji: '🔌' },
+      { label: 'はじめにチャンネル', description: 'ウェルカムメッセージを送信するチャンネル', value: 'welcome_ch', emoji: '📢' },
+      { label: '認証済みロール', description: '認証完了後に付与するロール', value: 'verified_role', emoji: '🏷️' },
+      { label: '運営ロール', description: '申請レビュー権限を持つロール', value: 'staff_role', emoji: '🛡️' },
+      { label: 'レビューチャンネル', description: '申請が投稿される運営用チャンネル', value: 'review_ch', emoji: '👀' },
+      { label: 'アーカイブチャンネル', description: '処理済み申請の記録用チャンネル', value: 'archive_ch', emoji: '📁' },
+      { label: 'チケットカテゴリ', description: 'チケットチャンネルを作成するカテゴリ', value: 'ticket_cat', emoji: '📂' },
+      { label: 'クイズ出題数', description: 'クイズで出題する問題数', value: 'quiz_count', emoji: '🔢' },
+      { label: '問題を追加', description: 'クイズ問題を追加する', value: 'add_question', emoji: '➕' },
+      { label: '問題一覧・削除', description: '登録済み問題の確認・削除', value: 'list_questions', emoji: '📋' },
+      { label: 'ウェルカムメッセージ送信', description: 'はじめにチャンネルにメッセージを送信', value: 'send_welcome', emoji: '✉️' },
+      { label: 'ユーザー検索', description: 'ユーザーの申請状況を検索', value: 'search', emoji: '🔍' },
+    ]);
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+  if (interaction.isChatInputCommand()) {
+    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  } else {
+    await interaction.update({ embeds: [embed], components: [row] });
+  }
+}
+
+export async function handleSetupSelectMenu(interaction: StringSelectMenuInteraction): Promise<void> {
+  const value = interaction.values[0];
   const guildId = interaction.guild!.id;
 
-  const getSettings = async () => ((await verificationRepo.getVerificationSettings(guildId)) ?? {}) as Record<string, unknown> & VerificationSettings;
-  const saveSettings = async (s: Record<string, unknown>) => {
-    await verificationRepo.setVerificationSettings(guildId, s as unknown as VerificationSettings);
-  };
-
-  switch (subcommand) {
-    case 'enable': {
-      const settings = await getSettings();
-      settings.enabled = true;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription('参加認証システムを有効にしました。');
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+  switch (value) {
+    case 'toggle': {
+      const settings = await getSettings(guildId);
+      settings.enabled = !settings.enabled;
+      await saveSettings(guildId, settings);
+      const embed = new CustomEmbed(interaction.user)
+        .setColor(0x00FF00)
+        .setTitle('✅ 設定変更')
+        .setDescription(`参加認証システムを${settings.enabled ? '**有効**' : '**無効**'}にしました。`);
+      await interaction.update({ embeds: [embed], components: [createBackButton()] });
       break;
     }
 
-    case 'disable': {
-      const settings = await getSettings();
-      settings.enabled = false;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription('参加認証システムを無効にしました。');
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'welcome_ch': {
+      await showChannelSelectModal(interaction, 'sv_modal_welcome_ch', 'はじめにチャンネルID');
       break;
     }
 
-    case 'set-welcome-channel': {
-      const channel = interaction.options.getChannel('channel', true);
-      const settings = await getSettings();
-      settings.welcomeChannelId = channel.id;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`はじめにチャンネルを ${channel} に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'verified_role': {
+      await showIdInputModal(interaction, 'sv_modal_verified_role', '認証済みロールID', '例: 1234567890');
       break;
     }
 
-    case 'set-role': {
-      const role = interaction.options.getRole('role', true);
-      const settings = await getSettings();
-      settings.verifiedRoleId = role.id;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`認証済みロールを ${role} に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'staff_role': {
+      await showIdInputModal(interaction, 'sv_modal_staff_role', '運営ロールID', '例: 1234567890');
       break;
     }
 
-    case 'set-staff-role': {
-      const role = interaction.options.getRole('role', true);
-      const settings = await getSettings();
-      settings.staffRoleId = role.id;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`運営ロールを ${role} に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'review_ch': {
+      await showChannelSelectModal(interaction, 'sv_modal_review_ch', 'レビューチャンネルID');
       break;
     }
 
-    case 'set-review-channel': {
-      const channel = interaction.options.getChannel('channel', true);
-      const settings = await getSettings();
-      settings.reviewChannelId = channel.id;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`レビューチャンネルを ${channel} に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'archive_ch': {
+      await showChannelSelectModal(interaction, 'sv_modal_archive_ch', 'アーカイブチャンネルID');
       break;
     }
 
-    case 'set-archive-channel': {
-      const channel = interaction.options.getChannel('channel', true);
-      const settings = await getSettings();
-      settings.archiveChannelId = channel.id;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`アーカイブチャンネルを ${channel} に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'ticket_cat': {
+      await showChannelSelectModal(interaction, 'sv_modal_ticket_cat', 'チケットカテゴリID');
       break;
     }
 
-    case 'set-ticket-category': {
-      const category = interaction.options.getChannel('category', true);
-      const settings = await getSettings();
-      settings.ticketCategoryId = category.id;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`チケットカテゴリを ${category.name} に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'quiz_count': {
+      await showIdInputModal(interaction, 'sv_modal_quiz_count', 'クイズ出題数', '例: 3');
       break;
     }
 
-    case 'set-nda-url': {
-      const url = interaction.options.getString('url', true);
-      const settings = await getSettings();
-      settings.ndaWebUrl = url;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`NDA署名ページURLを \`${url}\` に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+    case 'add_question': {
+      const modal = new ModalBuilder()
+        .setCustomId('sv_modal_add_question')
+        .setTitle('クイズ問題を追加');
+
+      const qInput = new TextInputBuilder().setCustomId('q').setLabel('問題文').setStyle(TextInputStyle.Paragraph).setRequired(true);
+      const a1 = new TextInputBuilder().setCustomId('a1').setLabel('選択肢1（正解）').setStyle(TextInputStyle.Short).setRequired(true);
+      const a2 = new TextInputBuilder().setCustomId('a2').setLabel('選択肢2').setStyle(TextInputStyle.Short).setRequired(true);
+      const a3 = new TextInputBuilder().setCustomId('a3').setLabel('選択肢3').setStyle(TextInputStyle.Short).setRequired(true);
+      const a4 = new TextInputBuilder().setCustomId('a4').setLabel('選択肢4').setStyle(TextInputStyle.Short).setRequired(true);
+
+      modal.addComponents(
+        new ActionRowBuilder<TextInputBuilder>().addComponents(qInput),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(a1),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(a2),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(a3),
+        new ActionRowBuilder<TextInputBuilder>().addComponents(a4),
+      );
+      await interaction.showModal(modal);
       break;
     }
 
-    case 'add-question': {
-      const question = interaction.options.getString('question', true);
-      const option1 = interaction.options.getString('option1', true);
-      const option2 = interaction.options.getString('option2', true);
-      const option3 = interaction.options.getString('option3', true);
-      const option4 = interaction.options.getString('option4', true);
-
-      const options = [option1, option2, option3, option4];
-      const shuffledOptions = [...options];
-      const correctIndex = 0;
-      for (let i = shuffledOptions.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
-        if (i === correctIndex) {
-        } else if (j === correctIndex) {
-        }
-      }
-      const newCorrectIndex = shuffledOptions.indexOf(option1);
-
-      const qId = randomUUID().slice(0, 8);
-      const settings = await getSettings();
-      if (!settings.questions) settings.questions = [];
-      settings.questions!.push({
-        id: qId,
-        question,
-        options: shuffledOptions,
-        correctIndex: newCorrectIndex,
-      });
-      await saveSettings(settings);
-
-      embed.setColor(0x00FF00).setTitle('✅ 問題追加完了')
-        .setDescription(`問題を追加しました（ID: \`${qId}\`）`)
-        .addFields(
-          { name: '問題', value: question, inline: false },
-          { name: '正解', value: option1, inline: true },
-          { name: '現在の問題数', value: `${settings.questions!.length}`, inline: true },
-        );
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      break;
-    }
-
-    case 'remove-question': {
-      const qId = interaction.options.getString('id', true);
-      const settings = await getSettings();
-      if (!settings.questions) {
-        embed.setColor(0xFF0000).setTitle('❌ エラー').setDescription('問題が登録されていません。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-        return;
-      }
-      const before = settings.questions.length;
-      settings.questions = settings.questions.filter((q: { id: string }) => q.id !== qId);
-      if (settings.questions.length === before) {
-        embed.setColor(0xFF0000).setTitle('❌ エラー').setDescription(`ID \`${qId}\` の問題が見つかりません。`);
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-        return;
-      }
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 削除完了').setDescription(`問題 \`${qId}\` を削除しました。（残り: ${settings.questions.length}問）`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      break;
-    }
-
-    case 'list-questions': {
-      const settings = await getSettings();
+    case 'list_questions': {
+      const settings = await getSettings(guildId);
       if (!settings.questions || settings.questions.length === 0) {
-        embed.setColor(0xFFAA00).setTitle('📋 問題一覧').setDescription('問題が登録されていません。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        const embed = new CustomEmbed(interaction.user)
+          .setColor(0xFFAA00)
+          .setTitle('📋 問題一覧')
+          .setDescription('問題が登録されていません。');
+        await interaction.update({ embeds: [embed], components: [createBackButton()] });
         return;
       }
 
-      embed.setColor(0xFFAA00).setTitle(`📋 問題一覧（${settings.questions.length}問）`);
-      for (const q of settings.questions.slice(0, 25)) {
+      const embed = new CustomEmbed(interaction.user)
+        .setColor(0xFFAA00)
+        .setTitle(`📋 問題一覧（${settings.questions.length}問）`);
+
+      const deleteButtons: ActionRowBuilder<ButtonBuilder>[] = [];
+      const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+      let currentRow = new ActionRowBuilder<ButtonBuilder>();
+
+      for (let i = 0; i < settings.questions.length; i++) {
+        const q = settings.questions[i];
         embed.addFields({
           name: `ID: ${q.id}`,
           value: `**${q.question}**\n正解: ${q.options[q.correctIndex]}`,
           inline: false,
         });
+
+        const btn = new ButtonBuilder()
+          .setCustomId(`sv_delq_${q.id}`)
+          .setLabel(`削除: ${q.id}`)
+          .setStyle(ButtonStyle.Danger);
+
+        currentRow.addComponents(btn);
+        if (currentRow.components.length === 5 || i === settings.questions.length - 1) {
+          if (currentRow.components.length > 0) {
+            rows.push(currentRow);
+            currentRow = new ActionRowBuilder<ButtonBuilder>();
+          }
+        }
       }
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+
+      const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId('sv_back').setLabel('← 戻る').setStyle(ButtonStyle.Secondary),
+      );
+
+      await interaction.update({ embeds: [embed], components: [...rows.slice(0, 4), backRow] });
       break;
     }
 
-    case 'set-quiz-count': {
-      const count = interaction.options.getInteger('count', true);
-      const settings = await getSettings();
-      settings.quizPassCount = count;
-      await saveSettings(settings);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`クイズ出題数を **${count}** 問に設定しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      break;
-    }
-
-    case 'send-welcome-message': {
-      const settings = await getSettings();
+    case 'send_welcome': {
+      const settings = await getSettings(guildId);
       if (!settings.welcomeChannelId) {
-        embed.setColor(0xFF0000).setTitle('❌ エラー').setDescription('はじめにチャンネルが設定されていません。先に `set-welcome-channel` を実行してください。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        const embed = new CustomEmbed(interaction.user)
+          .setColor(0xFF0000)
+          .setTitle('❌ エラー')
+          .setDescription('はじめにチャンネルが設定されていません。先に設定してください。');
+        await interaction.update({ embeds: [embed], components: [createBackButton()] });
         return;
       }
 
-      const channel = await interaction.guild!.channels.fetch(settings.welcomeChannelId).catch(() => null) as import('discord.js').TextChannel | null;
+      const channel = await interaction.guild!.channels.fetch(settings.welcomeChannelId).catch(() => null) as TextChannel | null;
       if (!channel) {
-        embed.setColor(0xFF0000).setTitle('❌ エラー').setDescription('はじめにチャンネルが見つかりません。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        const embed = new CustomEmbed(interaction.user)
+          .setColor(0xFF0000)
+          .setTitle('❌ エラー')
+          .setDescription('はじめにチャンネルが見つかりません。');
+        await interaction.update({ embeds: [embed], components: [createBackButton()] });
         return;
       }
 
@@ -319,75 +247,251 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         .setColor(0xFFAA00);
 
       const button = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId('v_start')
-          .setLabel('参加申請フォームを開く')
-          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('v_start').setLabel('参加申請フォームを開く').setStyle(ButtonStyle.Primary),
       );
 
       const message = await channel.send({ embeds: [welcomeEmbed], components: [button] });
-
       settings.welcomeMessageId = message.id;
-      await saveSettings(settings);
+      await saveSettings(guildId, settings);
 
-      embed.setColor(0x00FF00).setTitle('✅ 送信完了').setDescription(`ウェルカムメッセージを ${channel} に送信しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-      break;
-    }
-
-    case 'show-config': {
-      const settings = await getSettings();
-      const fetchChannel = async (id?: string) => id ? `<#${id}>` : '未設定';
-      const fetchRole = async (id?: string) => id ? `<@&${id}>` : '未設定';
-
-      embed.setColor(0xFFAA00).setTitle('⚙️ 参加認証システム設定')
-        .addFields(
-          { name: '有効', value: settings.enabled ? '✅ 有効' : '❌ 無効', inline: true },
-          { name: 'はじめにチャンネル', value: await fetchChannel(settings.welcomeChannelId), inline: true },
-          { name: '認証済みロール', value: await fetchRole(settings.verifiedRoleId), inline: true },
-          { name: '運営ロール', value: await fetchRole(settings.staffRoleId), inline: true },
-          { name: 'レビューチャンネル', value: await fetchChannel(settings.reviewChannelId), inline: true },
-          { name: 'アーカイブチャンネル', value: await fetchChannel(settings.archiveChannelId), inline: true },
-          { name: 'チケットカテゴリ', value: settings.ticketCategoryId ? await fetchChannel(settings.ticketCategoryId) : '未設定', inline: true },
-          { name: 'NDA URL', value: settings.ndaWebUrl ?? '未設定', inline: true },
-          { name: 'クイズ出題数', value: `${settings.quizPassCount ?? 3}`, inline: true },
-          { name: '登録問題数', value: `${settings.questions?.length ?? 0}`, inline: true },
-          { name: 'バイパス人数', value: `${settings.bypassList?.length ?? 0}`, inline: true },
-        );
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      const embed = new CustomEmbed(interaction.user)
+        .setColor(0x00FF00)
+        .setTitle('✅ 送信完了')
+        .setDescription(`ウェルカムメッセージを ${channel} に送信しました。`);
+      await interaction.update({ embeds: [embed], components: [createBackButton()] });
       break;
     }
 
     case 'search': {
-      const userId = interaction.options.getString('user-id', true);
+      await showIdInputModal(interaction, 'sv_modal_search', '検索するユーザーID', '例: 1234567890');
+      break;
+    }
+  }
+}
+
+export async function handleSetupModal(interaction: ModalSubmitInteraction): Promise<void> {
+  const customId = interaction.customId;
+  const guildId = interaction.guild!.id;
+
+  switch (customId) {
+    case 'sv_modal_welcome_ch': {
+      const id = extractChannelId(interaction.fields.getTextInputValue('channel_id'));
+      const settings = await getSettings(guildId);
+      settings.welcomeChannelId = id;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `はじめにチャンネルを <#${id}> に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_verified_role': {
+      const id = interaction.fields.getTextInputValue('value').replace(/[<@&>]/g, '').trim();
+      const settings = await getSettings(guildId);
+      settings.verifiedRoleId = id;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `認証済みロールを <@&${id}> に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_staff_role': {
+      const id = interaction.fields.getTextInputValue('value').replace(/[<@&>]/g, '').trim();
+      const settings = await getSettings(guildId);
+      settings.staffRoleId = id;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `運営ロールを <@&${id}> に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_review_ch': {
+      const id = extractChannelId(interaction.fields.getTextInputValue('channel_id'));
+      const settings = await getSettings(guildId);
+      settings.reviewChannelId = id;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `レビューチャンネルを <#${id}> に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_archive_ch': {
+      const id = extractChannelId(interaction.fields.getTextInputValue('channel_id'));
+      const settings = await getSettings(guildId);
+      settings.archiveChannelId = id;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `アーカイブチャンネルを <#${id}> に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_ticket_cat': {
+      const id = extractChannelId(interaction.fields.getTextInputValue('channel_id'));
+      const settings = await getSettings(guildId);
+      settings.ticketCategoryId = id;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `チケットカテゴリを <#${id}> に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_quiz_count': {
+      const count = parseInt(interaction.fields.getTextInputValue('value').trim(), 10);
+      if (isNaN(count) || count < 1) {
+        await replyModalError(interaction, '1以上の数値を入力してください。');
+        return;
+      }
+      const settings = await getSettings(guildId);
+      settings.quizPassCount = count;
+      await saveSettings(guildId, settings);
+      await replyModalSuccess(interaction, `クイズ出題数を **${count}** 問に設定しました。`);
+      break;
+    }
+
+    case 'sv_modal_add_question': {
+      const question = interaction.fields.getTextInputValue('q');
+      const a1 = interaction.fields.getTextInputValue('a1');
+      const a2 = interaction.fields.getTextInputValue('a2');
+      const a3 = interaction.fields.getTextInputValue('a3');
+      const a4 = interaction.fields.getTextInputValue('a4');
+
+      const options = [a1, a2, a3, a4];
+      const shuffledOptions = [...options];
+      for (let i = shuffledOptions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+      }
+      const correctIndex = shuffledOptions.indexOf(a1);
+
+      const qId = randomUUID().slice(0, 8);
+      const settings = await getSettings(guildId);
+      if (!settings.questions) settings.questions = [];
+      settings.questions.push({ id: qId, question, options: shuffledOptions, correctIndex });
+      await saveSettings(guildId, settings);
+
+      await replyModalSuccess(interaction, `問題を追加しました（ID: \`${qId}\`）\n正解: ${a1}\n現在の問題数: ${settings.questions.length}`);
+      break;
+    }
+
+    case 'sv_modal_search': {
+      const userId = interaction.fields.getTextInputValue('value').trim().replace(/[<@!>]/g, '');
       const applications = verificationRepo.getApplicationsByUser(guildId, userId);
 
       if (applications.length === 0) {
-        embed.setColor(0xFFAA00).setTitle('🔍 検索結果').setDescription(`<@${userId}> の申請履歴はありません。`);
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await replyModalSuccess(interaction, `<@${userId}> の申請履歴はありません。`);
         return;
       }
 
-      embed.setColor(0xFFAA00).setTitle(`🔍 検索結果: <@${userId}>（${applications.length}件）`);
+      const embed = new CustomEmbed(interaction.user)
+        .setColor(0xFFAA00)
+        .setTitle(`🔍 検索結果: <@${userId}>（${applications.length}件）`);
+
+      const statusMap: Record<string, string> = {
+        quiz: '📝 クイズ中', pending: '⏳ 審査中', approved: '✅ 承認済み',
+        rejected: '❌ 却下', nda_pending: '📋 NDA待ち', completed: '🎉 完了',
+      };
+
       for (const app of applications.slice(0, 10)) {
-        const statusMap: Record<string, string> = {
-          quiz: '📝 クイズ中',
-          pending: '⏳ 審査中',
-          approved: '✅ 承認済み',
-          rejected: '❌ 却下',
-          nda_pending: '📋 NDA待ち',
-          completed: '🎉 完了',
-        };
         embed.addFields({
           name: `${statusMap[app.status] ?? app.status} - <t:${Math.floor(app.submittedAt / 1000)}:F>`,
           value: `名前: ${app.displayName} | 活動: ${app.activity.slice(0, 50)}`,
           inline: false,
         });
       }
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+
+      const backRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId('sv_back').setLabel('← 戻る').setStyle(ButtonStyle.Secondary),
+      );
+
+      await interaction.reply({ embeds: [embed], components: [backRow], ephemeral: true });
       break;
     }
   }
+}
+
+export async function handleSetupButton(interaction: ButtonInteraction): Promise<void> {
+  const customId = interaction.customId;
+
+  if (customId === 'sv_back') {
+    await sendSetupMenu(interaction);
+    return;
+  }
+
+  if (customId.startsWith('sv_delq_')) {
+    const qId = customId.slice(8);
+    const guildId = interaction.guild!.id;
+    const settings = await getSettings(guildId);
+    if (!settings.questions) {
+      await interaction.update({
+        embeds: [new CustomEmbed(interaction.user).setColor(0xFF0000).setTitle('❌ エラー').setDescription('問題がありません。')],
+        components: [createBackButton()],
+      });
+      return;
+    }
+    const before = settings.questions.length;
+    settings.questions = settings.questions.filter((q: VerificationQuestion) => q.id !== qId);
+    if (settings.questions.length === before) {
+      await interaction.update({
+        embeds: [new CustomEmbed(interaction.user).setColor(0xFF0000).setTitle('❌ エラー').setDescription(`問題 \`${qId}\` が見つかりません。`)],
+        components: [createBackButton()],
+      });
+      return;
+    }
+    await saveSettings(guildId, settings);
+
+    const embed = new CustomEmbed(interaction.user)
+      .setColor(0x00FF00)
+      .setTitle('✅ 削除完了')
+      .setDescription(`問題 \`${qId}\` を削除しました。（残り: ${settings.questions.length}問）`);
+    await interaction.update({ embeds: [embed], components: [createBackButton()] });
+  }
+}
+
+function createBackButton(): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId('sv_back').setLabel('← 設定メニューに戻る').setStyle(ButtonStyle.Secondary),
+  );
+}
+
+function extractChannelId(input: string): string {
+  const cleaned = input.replace(/[<#>]/g, '').trim();
+  return cleaned;
+}
+
+async function showChannelSelectModal(
+  interaction: StringSelectMenuInteraction,
+  modalId: string,
+  label: string,
+): Promise<void> {
+  const modal = new ModalBuilder().setCustomId(modalId).setTitle(label);
+  const input = new TextInputBuilder()
+    .setCustomId('channel_id')
+    .setLabel('チャンネルID（または #チャンネルメンション）')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('例: 1234567890 または #channel-name');
+  modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+  await interaction.showModal(modal);
+}
+
+async function showIdInputModal(
+  interaction: StringSelectMenuInteraction,
+  modalId: string,
+  label: string,
+  placeholder: string,
+): Promise<void> {
+  const modal = new ModalBuilder().setCustomId(modalId).setTitle(label);
+  const input = new TextInputBuilder()
+    .setCustomId('value')
+    .setLabel(label)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder(placeholder);
+  modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+  await interaction.showModal(modal);
+}
+
+async function replyModalSuccess(interaction: ModalSubmitInteraction, description: string): Promise<void> {
+  const embed = new CustomEmbed(interaction.user).setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(description);
+  await interaction.reply({ embeds: [embed], components: [createBackButton()], ephemeral: true });
+}
+
+async function replyModalError(interaction: ModalSubmitInteraction, description: string): Promise<void> {
+  const embed = new CustomEmbed(interaction.user).setColor(0xFF0000).setTitle('❌ エラー').setDescription(description);
+  await interaction.reply({ embeds: [embed], components: [createBackButton()], ephemeral: true });
 }
 
 const command: BotCommand = { data, execute };

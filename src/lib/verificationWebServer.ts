@@ -209,6 +209,7 @@ ${HTML_FOOT}`);
       const pdfBuffer = await generateNdaPdf({
         displayName: application.displayName,
         userTag: application.ndaUserTag ?? '不明',
+        discordId: application.userId,
         email: application.ndaEmail,
         ipAddress: application.ndaIpAddress ?? '不明',
         signedAt,

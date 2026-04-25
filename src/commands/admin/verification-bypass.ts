@@ -1,6 +1,8 @@
 import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
+import { randomUUID } from 'node:crypto';
 import type { BotCommand } from '../../types/index.js';
 import { verificationRepo } from '../../lib/repositories/index.js';
+import { verificationManager } from '../../lib/verificationManager.js';
 import { CustomEmbed } from '../../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
@@ -30,7 +32,35 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'add': {
       const user = interaction.options.getUser('user', true);
       await verificationRepo.addBypass(guildId, user.id);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`${user} をバイパスリストに追加しました。\n参加時に自動で認証済みロールが付与されます。`);
+
+      const existing = verificationRepo.getActiveApplicationByUser(guildId, user.id);
+      if (existing) {
+        embed.setColor(0xFFAA00).setTitle('⚠️ 設定完了').setDescription(
+          `${user} をバイパスリストに追加しました。\nこのユーザーにはすでにアクティブな申請が存在するため、チケットは作成されませんでした。`,
+        );
+      } else {
+        const appId = randomUUID();
+        await verificationRepo.setApplication(appId, {
+          id: appId,
+          userId: user.id,
+          guildId,
+          displayName: user.username,
+          activity: 'バイパス追加',
+          status: 'approved',
+          submittedAt: Date.now(),
+          reviewedBy: interaction.user.id,
+          reviewedAt: Date.now(),
+        });
+
+        await verificationManager.createTicketChannel(
+          verificationRepo.getApplication(appId)!,
+        );
+
+        embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(
+          `${user} をバイパスリストに追加し、NDA署名用チケットを作成しました。\n参加時に自動で認証済みロールが付与されます。`,
+        );
+      }
+
       await interaction.reply({ embeds: [embed], ephemeral: true });
       break;
     }

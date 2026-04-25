@@ -51,6 +51,7 @@ function findCjkFont(): CjkFontConfig | null {
 export interface NdaPdfData {
   displayName: string;
   userTag: string;
+  discordId: string;
   email?: string;
   ipAddress: string;
   signedAt: string;
@@ -97,7 +98,7 @@ export async function generateNdaPdf(data: NdaPdfData): Promise<Buffer> {
     doc.fontSize(11);
     doc.text(`署名日時: ${data.signedAt}`);
     doc.text(`署名者表示名: ${data.displayName}`);
-    doc.text(`Discordアカウント: ${data.userTag}`);
+    doc.text(`Discordアカウント: ${data.userTag} (ID: ${data.discordId})`);
     doc.text(`メールアドレス: ${data.email ?? '未取得'}`);
     doc.text(`署名時IPアドレス: ${data.ipAddress}`);
     doc.moveDown(0.5);
