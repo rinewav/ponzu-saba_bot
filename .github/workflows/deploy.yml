@@ -12,10 +12,16 @@ jobs:
     runs-on: self-hosted
     env:
       BOT_DIR: F:\git\ponzu-sababot\bot
+      GIT_TERMINAL_PROMPT: 0
     steps:
       - name: Pull latest code
         working-directory: ${{ env.BOT_DIR }}
-        run: 'git -c http.extraHeader="Authorization:Bearer ${{ secrets.GITHUB_TOKEN }}" pull origin main'
+        run: |
+          $token = "${{ secrets.GITHUB_TOKEN }}"
+          $repo = "${{ github.repository }}"
+          git fetch "https://x-access-token:${token}@github.com/${repo}.git" main
+          git reset --hard origin/main
+        shell: powershell
 
       - name: Stop Bot (release file locks)
         continue-on-error: true
