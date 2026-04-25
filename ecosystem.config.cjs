@@ -2,8 +2,9 @@ module.exports = {
   apps: [
     {
       name: 'ponzubot',
-      script: 'node_modules/.bin/tsx',
-      args: 'src/index.ts',
+      interpreter: 'node',
+      node_args: '--import tsx/esm',
+      script: 'src/index.ts',
       cwd: 'F:/git/ponzu-sababot/bot',
       env_production: {
         NODE_ENV: 'production',
