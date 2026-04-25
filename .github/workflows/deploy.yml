@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: self-hosted
@@ -12,7 +15,7 @@ jobs:
     steps:
       - name: Pull latest code
         working-directory: ${{ env.BOT_DIR }}
-        run: "git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rinewav/ponzu-saba_bot.git main"
+        run: 'git -c http.extraHeader="Authorization:Bearer ${{ secrets.GITHUB_TOKEN }}" pull origin main'
 
       - name: Stop Bot (release file locks)
         continue-on-error: true
