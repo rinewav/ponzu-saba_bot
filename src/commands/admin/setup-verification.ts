@@ -16,7 +16,7 @@ import {
   type TextChannel,
 } from 'discord.js';
 import { randomUUID } from 'node:crypto';
-import type { BotCommand, VerificationSettings, VerificationQuestion } from '../../types/index.js';
+import type { BotCommand, VerificationSettings, VerificationQuestion, FormFieldConfig } from '../../types/index.js';
 import { verificationRepo } from '../../lib/repositories/index.js';
 import { CustomEmbed } from '../../lib/customEmbed.js';
 
@@ -58,6 +58,7 @@ async function sendSetupMenu(
       `アーカイブチャンネル: ${ch(settings.archiveChannelId)}\n` +
       `チケットカテゴリ: ${ch(settings.ticketCategoryId)}\n` +
       `クイズ出題数: ${settings.quizPassCount ?? 3} / 登録問題数: ${settings.questions?.length ?? 0}\n` +
+      `申請フォーム: ${settings.formFields ? `${settings.formFields.length}項目（カスタム）` : 'デフォルト（5項目）'}\n` +
       `バイパス人数: ${settings.bypassList?.length ?? 0}`,
     );
 
@@ -77,6 +78,7 @@ async function sendSetupMenu(
       { label: '問題一覧・削除', description: '登録済み問題の確認・削除', value: 'list_questions', emoji: '📋' },
       { label: 'ウェルカムメッセージ送信', description: 'はじめにチャンネルにメッセージを送信', value: 'send_welcome', emoji: '✉️' },
       { label: 'ユーザー検索', description: 'ユーザーの申請状況を検索', value: 'search', emoji: '🔍' },
+      { label: '申請フォーム設定', description: '申請フォームの項目をカスタマイズ', value: 'form_fields', emoji: '📝' },
     ]);
 
   const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
@@ -236,13 +238,12 @@ export async function handleSetupSelectMenu(interaction: StringSelectMenuInterac
         .setTitle('🔰 ぽん酢鯖へようこそ！')
         .setDescription(
           'ぽん酢鯖へご興味を持っていただき、ありがとうございます！このメッセージでは参加後の認証手順について説明しております！\n\n' +
-          '**参加手順：**\n' +
+          '**認証手順：**\n' +
           '1️⃣ 一番上までスクロールしてルールを読む\n' +
-          '2️⃣ 下のボタンから参加申請フォームを開く\n' +
-          '3️⃣ ルールに関するクイズを解く\n' +
-          '️4️⃣ 参加申請フォームに必要事項を入力する（ご不明点があれば「一言」の欄にご記入ください）\n' +
-          '5️⃣ 運営からの返答を待つ（通常24時間〜72時間ほどでお返事いたします）\n' +
-          '6️⃣ 承認されたらNDA（秘密保持契約）に署名して認証完了！\n\n' +
+          '2️⃣ 下のボタンを押してルールに関するクイズを解く\n' +
+          '3️⃣ 参加申請フォームに必要事項を入力する\n' +
+          '4️⃣ 運営からの返答を待つ（通常24時間〜72時間ほどでお返事いたします）\n' +
+          '5️⃣ 承認されたらNDA（秘密保持契約）に署名して認証完了！\n\n' +
           '準備ができましたら、「参加申請フォームを開く」ボタンを押して進んでください。',
         )
         .setColor(0xFFAA00);
@@ -265,6 +266,54 @@ export async function handleSetupSelectMenu(interaction: StringSelectMenuInterac
 
     case 'search': {
       await showIdInputModal(interaction, 'sv_modal_search', '検索するユーザーID', '例: 1234567890');
+      break;
+    }
+
+    case 'form_fields': {
+      const settings = await getSettings(guildId);
+      const fields = settings.formFields;
+
+      const embed = new CustomEmbed(interaction.user)
+        .setColor(0xFFAA00)
+        .setTitle('📝 申請フォーム設定');
+
+      if (!fields || fields.length === 0) {
+        embed.setDescription('現在デフォルトのフォームが使用されています。\n\n項目を追加するには下のボタンを押してください。\n（最大5項目。1行/複数行、必須/任意を設定可能）');
+      } else {
+        embed.setDescription(`現在 ${fields.length}/5 項目が設定されています。\n\n` +
+          fields.map((f, i) => `${i + 1}. **${f.label}** (${f.style === 'paragraph' ? '複数行' : '1行'}${f.required ? '・必須' : '・任意'}・最大${f.maxLength}文字)`).join('\n'));
+      }
+
+      const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+      const btnRow = new ActionRowBuilder<ButtonBuilder>();
+
+      if ((fields?.length ?? 0) < 5) {
+        btnRow.addComponents(new ButtonBuilder().setCustomId('sv_form_add').setLabel('➕ 項目を追加').setStyle(ButtonStyle.Primary));
+      }
+      if (fields && fields.length > 0) {
+        btnRow.addComponents(new ButtonBuilder().setCustomId('sv_form_reset').setLabel('🗑️ デフォルトに戻す').setStyle(ButtonStyle.Danger));
+      }
+      if (btnRow.components.length > 0) rows.push(btnRow);
+
+      if (fields && fields.length > 0) {
+        const delRow = new ActionRowBuilder<ButtonBuilder>();
+        for (const f of fields) {
+          delRow.addComponents(
+            new ButtonBuilder().setCustomId(`sv_formdel_${f.id}`).setLabel(`❌ ${f.label.slice(0, 70)}`).setStyle(ButtonStyle.Secondary),
+          );
+          if (delRow.components.length === 5) {
+            rows.push(delRow);
+            break;
+          }
+        }
+        if (delRow.components.length > 0 && !rows.includes(delRow)) rows.push(delRow);
+      }
+
+      rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId('sv_back').setLabel('← 戻る').setStyle(ButtonStyle.Secondary),
+      ));
+
+      await interaction.update({ embeds: [embed], components: rows.slice(0, 5) });
       break;
     }
   }
@@ -400,6 +449,45 @@ export async function handleSetupModal(interaction: ModalSubmitInteraction): Pro
       await interaction.reply({ embeds: [embed], components: [backRow], ephemeral: true });
       break;
     }
+
+    case 'sv_modal_form_add': {
+      const label = interaction.fields.getTextInputValue('form_label').trim();
+      const style = interaction.fields.getTextInputValue('form_style').trim().toLowerCase();
+      const required = interaction.fields.getTextInputValue('form_required').trim().toLowerCase();
+      const maxLength = parseInt(interaction.fields.getTextInputValue('form_maxlength').trim(), 10);
+
+      if (!label || label.length > 45) {
+        await replyModalError(interaction, 'ラベルは1〜45文字で入力してください。');
+        return;
+      }
+      if (style !== 'short' && style !== 'paragraph') {
+        await replyModalError(interaction, 'スタイルは short または paragraph で入力してください。');
+        return;
+      }
+      if (required !== 'true' && required !== 'false') {
+        await replyModalError(interaction, '必須設定は true または false で入力してください。');
+        return;
+      }
+      if (isNaN(maxLength) || maxLength < 1 || maxLength > 4000) {
+        await replyModalError(interaction, '最大文字数は1〜4000の数値で入力してください。');
+        return;
+      }
+
+      const settings = await getSettings(guildId);
+      const fields = settings.formFields ?? [];
+      if (fields.length >= 5) {
+        await replyModalError(interaction, 'フォーム項目は最大5つまでです。');
+        return;
+      }
+
+      const fieldId = `field_${randomUUID().slice(0, 8)}`;
+      fields.push({ id: fieldId, label, style: style as 'short' | 'paragraph', required: required === 'true', maxLength });
+      settings.formFields = fields;
+      await saveSettings(guildId, settings);
+
+      await replyModalSuccess(interaction, `フォーム項目「**${label}**」を追加しました。\n現在 ${fields.length}/5 項目。`);
+      break;
+    }
   }
 }
 
@@ -438,6 +526,60 @@ export async function handleSetupButton(interaction: ButtonInteraction): Promise
       .setTitle('✅ 削除完了')
       .setDescription(`問題 \`${qId}\` を削除しました。（残り: ${settings.questions.length}問）`);
     await interaction.update({ embeds: [embed], components: [createBackButton()] });
+    return;
+  }
+
+  if (customId === 'sv_form_add') {
+    const modal = new ModalBuilder().setCustomId('sv_modal_form_add').setTitle('申請フォーム項目を追加');
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId('form_label').setLabel('項目名（ラベル）').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(45).setPlaceholder('例: 表示名'),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId('form_style').setLabel('入力スタイル (short / paragraph)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(10).setPlaceholder('short'),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId('form_required').setLabel('必須 (true / false)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(5).setPlaceholder('true'),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder().setCustomId('form_maxlength').setLabel('最大文字数').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(4).setPlaceholder('100'),
+      ),
+    );
+    await interaction.showModal(modal);
+    return;
+  }
+
+  if (customId === 'sv_form_reset') {
+    const guildId = interaction.guild!.id;
+    const settings = await getSettings(guildId);
+    settings.formFields = undefined;
+    await saveSettings(guildId, settings);
+    const resetEmbed = new CustomEmbed(interaction.user).setColor(0x00FF00).setTitle('✅ リセット完了').setDescription('申請フォームをデフォルトに戻しました。');
+    await interaction.update({ embeds: [resetEmbed], components: [createBackButton()] });
+    return;
+  }
+
+  if (customId.startsWith('sv_formdel_')) {
+    const fieldId = customId.slice(11);
+    const guildId = interaction.guild!.id;
+    const settings = await getSettings(guildId);
+    if (!settings.formFields) {
+      await interaction.update({ embeds: [new CustomEmbed(interaction.user).setColor(0xFF0000).setTitle('❌ エラー').setDescription('カスタムフォーム項目がありません。')], components: [createBackButton()] });
+      return;
+    }
+    const before = settings.formFields.length;
+    settings.formFields = settings.formFields.filter((f: FormFieldConfig) => f.id !== fieldId);
+    if (settings.formFields.length === before) {
+      await interaction.update({ embeds: [new CustomEmbed(interaction.user).setColor(0xFF0000).setTitle('❌ エラー').setDescription('項目が見つかりません。')], components: [createBackButton()] });
+      return;
+    }
+    if (settings.formFields.length === 0) {
+      settings.formFields = undefined;
+    }
+    await saveSettings(guildId, settings);
+    const delEmbed = new CustomEmbed(interaction.user).setColor(0x00FF00).setTitle('✅ 削除完了').setDescription(`フォーム項目を削除しました。（残り: ${settings.formFields?.length ?? 0}項目）`);
+    await interaction.update({ embeds: [delEmbed], components: [createBackButton()] });
+    return;
   }
 }
 

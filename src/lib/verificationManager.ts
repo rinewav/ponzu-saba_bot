@@ -21,7 +21,15 @@ import {
 import { verificationRepo, miscRepo } from './repositories/index.js';
 import { CustomEmbed } from './customEmbed.js';
 import { generateNdaPdf } from './ndaPdfGenerator.js';
-import type { VerificationApplication, VerificationQuestion, VerificationSettings } from '../types/index.js';
+import type { VerificationApplication, VerificationQuestion, VerificationSettings, FormFieldConfig } from '../types/index.js';
+
+const DEFAULT_FORM_FIELDS: FormFieldConfig[] = [
+  { id: 'display_name', label: '表示名', style: 'short', required: true, maxLength: 100 },
+  { id: 'activity', label: '活動内容（何をしている人か）', style: 'paragraph', required: true, maxLength: 1000 },
+  { id: 'portfolio', label: 'ポートフォリオのリンク（任意）', style: 'short', required: false, maxLength: 500 },
+  { id: 'online_hours', label: 'おおよそのオンライン時間', style: 'short', required: true, maxLength: 100 },
+  { id: 'note', label: '一言メッセージ（任意）', style: 'paragraph', required: false, maxLength: 1000 },
+];
 
 interface ActiveQuiz {
   applicationId: string;
@@ -270,52 +278,24 @@ export class VerificationManager {
       return;
     }
 
+    const settings = await verificationRepo.getVerificationSettings(interaction.guild!.id);
+    const fields = settings?.formFields ?? DEFAULT_FORM_FIELDS;
+    const formFields = fields.slice(0, 5);
+
     const modal = new ModalBuilder()
       .setCustomId(`v_f_${appId}`)
       .setTitle('参加申請フォーム');
 
-    const nameInput = new TextInputBuilder()
-      .setCustomId('display_name')
-      .setLabel('表示名')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMaxLength(100);
-
-    const activityInput = new TextInputBuilder()
-      .setCustomId('activity')
-      .setLabel('活動内容（何をしている人か）')
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true)
-      .setMaxLength(1000);
-
-    const portfolioInput = new TextInputBuilder()
-      .setCustomId('portfolio')
-      .setLabel('ポートフォリオのリンク（任意）')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-      .setMaxLength(500);
-
-    const onlineHoursInput = new TextInputBuilder()
-      .setCustomId('online_hours')
-      .setLabel('おおよそのオンライン時間')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMaxLength(100);
-
-    const noteInput = new TextInputBuilder()
-      .setCustomId('note')
-      .setLabel('一言メッセージ（任意）')
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(false)
-      .setMaxLength(1000);
-
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(activityInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(portfolioInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(onlineHoursInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(noteInput),
-    );
+    for (const field of formFields) {
+      const input = new TextInputBuilder()
+        .setCustomId(field.id)
+        .setLabel(field.label)
+        .setStyle(field.style === 'paragraph' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+        .setRequired(field.required)
+        .setMaxLength(field.maxLength);
+      if (field.placeholder) input.setPlaceholder(field.placeholder);
+      modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+    }
 
     await interaction.showModal(modal);
   }
@@ -327,17 +307,21 @@ export class VerificationManager {
       return;
     }
 
-    const displayName = interaction.fields.getTextInputValue('display_name');
-    const activity = interaction.fields.getTextInputValue('activity');
-    const portfolio = interaction.fields.getTextInputValue('portfolio') || undefined;
-    const onlineHours = interaction.fields.getTextInputValue('online_hours');
-    const note = interaction.fields.getTextInputValue('note') || undefined;
+    const settings = await verificationRepo.getVerificationSettings(interaction.guild!.id);
+    const fields = settings?.formFields ?? DEFAULT_FORM_FIELDS;
 
-    application.displayName = displayName;
-    application.activity = activity;
-    application.portfolio = portfolio;
-    application.onlineHours = onlineHours;
-    application.note = note;
+    const formData: Record<string, string> = {};
+    for (const field of fields.slice(0, 5)) {
+      const value = interaction.fields.getTextInputValue(field.id);
+      if (value) formData[field.label] = value;
+    }
+    application.formData = formData;
+
+    application.displayName = formData['表示名'] || formData[fields[0]?.label] || interaction.user.username;
+    application.activity = formData['活動内容（何をしている人か）'] || formData[fields[1]?.label] || '';
+    application.portfolio = formData['ポートフォリオのリンク（任意）'] || undefined;
+    application.onlineHours = formData['おおよそのオンライン時間'] || undefined;
+    application.note = formData['一言メッセージ（任意）'] || undefined;
     application.status = 'pending';
     application.submittedAt = Date.now();
 
@@ -366,20 +350,24 @@ export class VerificationManager {
       .setColor(0xFFAA00)
       .addFields(
         { name: '申請者', value: member ? `${member} (${member.user.tag})` : `<@${application.userId}>`, inline: true },
+      );
+
+    if (application.formData && Object.keys(application.formData).length > 0) {
+      for (const [label, value] of Object.entries(application.formData)) {
+        embed.addFields({ name: label, value: value || '未入力', inline: false });
+      }
+    } else {
+      embed.addFields(
         { name: '表示名', value: application.displayName, inline: true },
         { name: '活動内容', value: application.activity, inline: false },
       );
-
-    if (application.portfolio) {
-      embed.addFields({ name: 'ポートフォリオ', value: application.portfolio, inline: false });
-    }
-
-    embed.addFields(
-      { name: 'オンライン時間', value: application.onlineHours ?? '未入力', inline: true },
-    );
-
-    if (application.note) {
-      embed.addFields({ name: '一言メッセージ', value: application.note, inline: false });
+      if (application.portfolio) {
+        embed.addFields({ name: 'ポートフォリオ', value: application.portfolio, inline: false });
+      }
+      embed.addFields({ name: 'オンライン時間', value: application.onlineHours ?? '未入力', inline: true });
+      if (application.note) {
+        embed.addFields({ name: '一言メッセージ', value: application.note, inline: false });
+      }
     }
 
     embed.addFields(
@@ -701,20 +689,24 @@ export class VerificationManager {
       .setColor(approved ? 0x00FF00 : 0xFF0000)
       .addFields(
         { name: '申請者', value: member ? `${member.user.tag} (${member.id})` : application.userId, inline: true },
+      );
+
+    if (application.formData && Object.keys(application.formData).length > 0) {
+      for (const [label, value] of Object.entries(application.formData)) {
+        embed.addFields({ name: label, value: value || '未入力', inline: false });
+      }
+    } else {
+      embed.addFields(
         { name: '表示名', value: application.displayName, inline: true },
         { name: '活動内容', value: application.activity, inline: false },
       );
-
-    if (application.portfolio) {
-      embed.addFields({ name: 'ポートフォリオ', value: application.portfolio, inline: false });
-    }
-
-    embed.addFields(
-      { name: 'オンライン時間', value: application.onlineHours ?? '未入力', inline: true },
-    );
-
-    if (application.note) {
-      embed.addFields({ name: '一言', value: application.note, inline: false });
+      if (application.portfolio) {
+        embed.addFields({ name: 'ポートフォリオ', value: application.portfolio, inline: false });
+      }
+      embed.addFields({ name: 'オンライン時間', value: application.onlineHours ?? '未入力', inline: true });
+      if (application.note) {
+        embed.addFields({ name: '一言', value: application.note, inline: false });
+      }
     }
 
     embed.addFields(

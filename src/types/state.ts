@@ -44,6 +44,15 @@ export interface AfkSettings {
   afkExcludedChannels?: string[];
 }
 
+export interface FormFieldConfig {
+  id: string;
+  label: string;
+  style: 'short' | 'paragraph';
+  required: boolean;
+  maxLength: number;
+  placeholder?: string;
+}
+
 export interface VerificationSettings {
   channelId?: string;
   roleId?: string;
@@ -60,6 +69,7 @@ export interface VerificationSettings {
   questions?: VerificationQuestion[];
   quizPassCount?: number;
   bypassList?: string[];
+  formFields?: FormFieldConfig[];
 }
 
 export interface VerificationQuestion {
@@ -89,6 +99,7 @@ export interface VerificationApplication {
   ndaIpAddress?: string;
   ndaUserTag?: string;
   ndaFingerprint?: string;
+  formData?: Record<string, string>;
 }
 
 export interface DailyStatsSettings {
