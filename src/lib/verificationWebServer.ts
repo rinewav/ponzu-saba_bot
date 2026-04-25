@@ -49,24 +49,41 @@ function normalizeIp(ip: string): string {
   return ip;
 }
 
+function isPrivateIp(ip: string): boolean {
+  if (ip === 'unknown' || ip === '127.0.0.1' || ip === '::1' || ip === '0.0.0.0') return true;
+  if (ip.startsWith('192.168.') || ip.startsWith('10.')) return true;
+  const match = ip.match(/^172\.(\d+)\./);
+  if (match) {
+    const secondOctet = parseInt(match[1], 10);
+    if (secondOctet >= 16 && secondOctet <= 31) return true;
+  }
+  if (ip.startsWith('169.254.')) return true;
+  if (ip.startsWith('fc') || ip.startsWith('fd') || ip === '::1') return true;
+  return false;
+}
+
 async function isVpnOrProxy(ip: string): Promise<boolean> {
   const cleanIp = normalizeIp(ip);
-  if (!cleanIp || cleanIp === 'unknown' || cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp.startsWith('192.168.') || cleanIp.startsWith('10.') || cleanIp.startsWith('172.')) return false;
+  if (!cleanIp || isPrivateIp(cleanIp)) return false;
 
   const apiKey = getProxyCheckKey();
   if (!apiKey) return false;
 
   try {
-    const url = `https://proxycheck.io/v2/${cleanIp}?key=${apiKey}&risk=1&vpn=1`;
+    const url = `https://proxycheck.io/v2/${cleanIp}?key=${apiKey}&vpn=3&risk=1`;
     const res = await axios.get(url, { timeout: 8000 });
     const data = res.data as { status?: string; [key: string]: unknown };
-    if (data.status !== 'ok') return false;
+    if (data.status !== 'ok' && data.status !== 'warning') return false;
     const info = data[cleanIp] as { proxy?: string; type?: string; risk?: number } | undefined;
     if (!info) return false;
 
     console.log(`[NDA] proxycheck result for ${cleanIp}: proxy=${info.proxy}, type=${info.type}, risk=${info.risk}`);
 
-    if (info.proxy === 'yes') return true;
+    if (info.proxy !== 'yes') return false;
+    const type = (info.type ?? '').toLowerCase();
+    const blockTypes = ['vpn', 'tor', 'socks', 'socks4', 'socks4a', 'socks5', 'socks5h', 'shadowsocks', 'http', 'https', 'openvpn', 'compromised server', 'scraper'];
+    if (blockTypes.some(t => type === t)) return true;
+
     return false;
   } catch (error) {
     console.error('[NDA] proxycheck.io チェックエラー:', error instanceof Error ? error.message : String(error));
