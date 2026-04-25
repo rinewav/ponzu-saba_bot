@@ -41,6 +41,16 @@ export default {
 
     console.log(`[VirusScan] ${message.author.tag} のメッセージから ${urls.length} 件のURLを検出: ${urls.join(', ')}`);
 
+    if (!message.channel.isSendable()) return;
+
+    const scanningEmbed = new CustomEmbed()
+      .setTitle('🔍 URLスキャン中...')
+      .setColor(0xFFAA00)
+      .setDescription(`${urls.length}件のURLをスキャンしています。少々お待ちください。`);
+
+    const scanMsg = await message.reply({ embeds: [scanningEmbed] }).catch(() => null);
+    if (!scanMsg) return;
+
     const scanResults: { url: string; malicious: number; suspicious: number; harmless: number; undetected: number }[] = [];
 
     for (const url of urls) {
@@ -58,38 +68,43 @@ export default {
       }
     }
 
-    if (scanResults.length === 0) return;
+    if (scanResults.length === 0) {
+      const errorEmbed = new CustomEmbed()
+        .setTitle('❌ スキャン失敗')
+        .setColor(0xFF0000)
+        .setDescription('VirusTotal APIエラーのためスキャン結果を取得できませんでした。');
+      await scanMsg.edit({ embeds: [errorEmbed] }).catch(console.error);
+      return;
+    }
 
     const dangerousResults = scanResults.filter(r => r.malicious > 0 || r.suspicious > 0);
-    if (dangerousResults.length > 0 && message.channel.isSendable()) {
-      for (const result of dangerousResults) {
-        const embed = new CustomEmbed()
-          .setTitle('⚠️ 危険なURLが検出されました')
-          .setColor(0xFF0000)
-          .setDescription(`**URL:** \`${result.url.slice(0, 100)}\`\n**送信者:** ${message.author}`)
-          .addFields(
-            { name: '悪意のある検出数', value: `${result.malicious}`, inline: true },
-            { name: '疑わしい検出数', value: `${result.suspicious}`, inline: true },
-            { name: '無害', value: `${result.harmless}`, inline: true },
-            { name: '未検出', value: `${result.undetected}`, inline: true },
-          )
-          .setTimestamp();
 
-        await message.channel.send({ embeds: [embed] }).catch(console.error);
-      }
-    } else if (message.channel.isSendable()) {
-      const safeUrls = scanResults.map(r => `・\`${r.url.slice(0, 80)}\``).join('\n');
+    if (dangerousResults.length > 0) {
+      const urlList = dangerousResults.map(r => {
+        return `・\`${r.url.slice(0, 80)}\`\n  悪意: **${r.malicious}** / 疑わしい: **${r.suspicious}** / 無害: ${r.harmless}`;
+      }).join('\n');
+
+      const embed = new CustomEmbed()
+        .setTitle('⚠️ 危険なURLが検出されました')
+        .setColor(0xFF0000)
+        .setDescription(`**送信者:** ${message.author}\n\n${urlList}`)
+        .setTimestamp();
+
+      await scanMsg.edit({ embeds: [embed] }).catch(console.error);
+    } else {
+      const urlList = scanResults.map(r => `・\`${r.url.slice(0, 80)}\``).join('\n');
+
       const embed = new CustomEmbed()
         .setTitle('✅ URLスキャン完了')
         .setColor(0x00FF00)
-        .setDescription(`**対象:**\n${safeUrls}\n\n脅威は検出されませんでした。`)
+        .setDescription(`**対象:**\n${urlList}\n\n脅威は検出されませんでした。`)
         .addFields(
           { name: 'スキャン数', value: `${scanResults.length}`, inline: true },
           { name: '結果', value: '安全', inline: true },
         )
         .setTimestamp();
 
-      await message.channel.send({ embeds: [embed] }).catch(console.error);
+      await scanMsg.edit({ embeds: [embed] }).catch(console.error);
     }
   },
 } satisfies BotEvent;
