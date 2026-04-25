@@ -70,7 +70,7 @@ async function isVpnOrProxy(ip: string): Promise<boolean> {
   if (!apiKey) return false;
 
   try {
-    const url = `https://proxycheck.io/v2/${cleanIp}?key=${apiKey}&vpn=3&risk=1`;
+    const url = `https://proxycheck.io/v2/${cleanIp}?key=${apiKey}&vpn=1&risk=1`;
     const res = await axios.get(url, { timeout: 8000 });
     const data = res.data as { status?: string; [key: string]: unknown };
     if (data.status !== 'ok' && data.status !== 'warning') return false;
@@ -79,10 +79,15 @@ async function isVpnOrProxy(ip: string): Promise<boolean> {
 
     console.log(`[NDA] proxycheck result for ${cleanIp}: proxy=${info.proxy}, type=${info.type}, risk=${info.risk}`);
 
-    if (info.proxy !== 'yes') return false;
-    const type = (info.type ?? '').toLowerCase();
-    const blockTypes = ['vpn', 'tor', 'socks', 'socks4', 'socks4a', 'socks5', 'socks5h', 'shadowsocks', 'http', 'https', 'openvpn', 'compromised server', 'scraper'];
-    if (blockTypes.some(t => type === t)) return true;
+    if (info.proxy === 'yes') {
+      console.log(`[NDA] ブロック: ${cleanIp} proxy=yes, type=${info.type}`);
+      return true;
+    }
+
+    if (typeof info.risk === 'number' && info.risk >= 66) {
+      console.log(`[NDA] ブロック: ${cleanIp} risk=${info.risk} >= 66`);
+      return true;
+    }
 
     return false;
   } catch (error) {
