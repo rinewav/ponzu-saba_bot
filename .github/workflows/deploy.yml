@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Pull latest code
         working-directory: ${{ env.BOT_DIR }}
-        run: 'git -c http.extraHeader="Authorization: token ${{ secrets.GITHUB_TOKEN }}" pull origin main'
+        run: "git pull https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rinewav/ponzu-saba_bot.git main"
 
       - name: Stop Bot (release file locks)
         continue-on-error: true
