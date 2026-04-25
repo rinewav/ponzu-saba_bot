@@ -26,6 +26,7 @@ import setupTemplate from './commands/admin/setup-template.js';
 import setupVcnotify from './commands/admin/setup-vcnotify.js';
 import setupVerification from './commands/admin/setup-verification.js';
 import verificationBypass from './commands/admin/verification-bypass.js';
+import verificationReset from './commands/admin/verification-reset.js';
 import setupVoicerole from './commands/admin/setup-voicerole.js';
 import setupWorkout from './commands/admin/setup-workout.js';
 import levelRole from './commands/level-role.js';
@@ -56,7 +57,7 @@ const commands: BotCommand[] = [
   setupCrosspost, setupDailystats, setupIntroduction, setupKikisenlog,
   setupLevel, setupLogs, setupMessageId, setupReban, setupReupload,
   setupRolePanel, setupTemplate, setupVcnotify, setupVerification,
-  verificationBypass, setupVoicerole, setupWorkout, levelRole, level, statsNow,
+  verificationBypass, verificationReset, setupVoicerole, setupWorkout, levelRole, level, statsNow,
 ];
 
 const events: (BotEvent | BotEvent[])[] = [
