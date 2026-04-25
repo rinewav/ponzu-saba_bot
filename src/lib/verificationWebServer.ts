@@ -1,4 +1,7 @@
 import express, { type Express, type Request, type Response } from 'express';
+import { readFileSync, existsSync } from 'node:fs';
+import { createServer as createHttpsServer } from 'node:https';
+import { join } from 'node:path';
 import { verificationManager } from './verificationManager.js';
 import { verificationRepo } from './repositories/index.js';
 
@@ -323,9 +326,23 @@ ${HTML_FOOT}`;
   }
 
   start(port: number): void {
-    this.server = this.app.listen(port, () => {
-      console.log(`[NDA WebServer] ポート ${port} で起動しました。`);
-    });
+    const certsDir = join(process.cwd(), 'certs');
+    const keyPath = join(certsDir, 'key.pem');
+    const certPath = join(certsDir, 'cert.pem');
+
+    if (existsSync(keyPath) && existsSync(certPath)) {
+      const options = {
+        key: readFileSync(keyPath),
+        cert: readFileSync(certPath),
+      };
+      this.server = createHttpsServer(options, this.app).listen(port, () => {
+        console.log(`[NDA WebServer] HTTPS ポート ${port} で起動しました。`);
+      });
+    } else {
+      this.server = this.app.listen(port, () => {
+        console.log(`[NDA WebServer] HTTP ポート ${port} で起動しました。（証明書なし）`);
+      });
+    }
   }
 }
 
