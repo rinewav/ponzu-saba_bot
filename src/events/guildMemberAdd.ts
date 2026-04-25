@@ -1,6 +1,8 @@
 import { Events, type GuildMember, type TextChannel } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { miscRepo } from '../lib/repositories/index.js';
+import { verificationManager } from '../lib/verificationManager.js';
+import { verificationRepo } from '../lib/repositories/index.js';
 import { CustomEmbed } from '../lib/customEmbed.js';
 
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID!;
@@ -11,6 +13,12 @@ export default {
   async execute(...args: unknown[]) {
     const [member] = args as [GuildMember];
     if (member.user.bot) return;
+
+    const settings = await verificationRepo.getVerificationSettings(member.guild.id);
+    if (settings?.enabled) {
+      await verificationManager.handleMemberJoin(member);
+      return;
+    }
 
     const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID) as TextChannel | null;
     if (!channel) {

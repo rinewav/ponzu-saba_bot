@@ -16,6 +16,7 @@ const DEFAULT_STATE: AppState = {
   rolePanels: {},
   crossPostTargets: {},
   reupload: {},
+  verificationApplications: {},
 };
 
 let state: AppState = structuredClone(DEFAULT_STATE);

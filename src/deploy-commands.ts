@@ -22,6 +22,7 @@ import setupRolePanel from './commands/admin/setup-role-panel.js';
 import setupTemplate from './commands/admin/setup-template.js';
 import setupVcnotify from './commands/admin/setup-vcnotify.js';
 import setupVerification from './commands/admin/setup-verification.js';
+import verificationBypass from './commands/admin/verification-bypass.js';
 import setupVoicerole from './commands/admin/setup-voicerole.js';
 import setupWorkout from './commands/admin/setup-workout.js';
 import levelRole from './commands/level-role.js';
@@ -37,7 +38,7 @@ const commands: BotCommand[] = [
   setupCrosspost, setupDailystats, setupIntroduction, setupKikisenlog,
   setupLevel, setupLogs, setupMessageId, setupReban, setupReupload,
   setupRolePanel, setupTemplate, setupVcnotify, setupVerification,
-  setupVoicerole, setupWorkout, levelRole, level, statsNow,
+  verificationBypass, setupVoicerole, setupWorkout, levelRole, level, statsNow,
 ];
 
 async function main(): Promise<void> {

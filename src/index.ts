@@ -1,10 +1,11 @@
+import 'dotenv/config';
 import { Client, GatewayIntentBits, Collection, Partials } from 'discord.js';
 import type { BotCommand, BotEvent } from './types/index.js';
 import { BaseRepository } from './lib/repositories/baseRepository.js';
 import { levelRepo } from './lib/repositories/levelRepo.js';
-import 'dotenv/config';
+import { verificationManager } from './lib/verificationManager.js';
+import { verificationWebServer } from './lib/verificationWebServer.js';
 
-// コマンド
 import cleanup from './commands/admin/cleanup.js';
 import kikisenManage from './commands/admin/kikisen-manage.js';
 import levelEdit from './commands/admin/level-edit.js';
@@ -24,13 +25,13 @@ import setupRolePanel from './commands/admin/setup-role-panel.js';
 import setupTemplate from './commands/admin/setup-template.js';
 import setupVcnotify from './commands/admin/setup-vcnotify.js';
 import setupVerification from './commands/admin/setup-verification.js';
+import verificationBypass from './commands/admin/verification-bypass.js';
 import setupVoicerole from './commands/admin/setup-voicerole.js';
 import setupWorkout from './commands/admin/setup-workout.js';
 import levelRole from './commands/level-role.js';
 import level from './commands/level.js';
 import statsNow from './commands/stats-now.js';
 
-// イベント
 import ready from './events/ready.js';
 import interactionCreate from './events/interactionCreate.js';
 import messageCreate from './events/messageCreate.js';
@@ -55,7 +56,7 @@ const commands: BotCommand[] = [
   setupCrosspost, setupDailystats, setupIntroduction, setupKikisenlog,
   setupLevel, setupLogs, setupMessageId, setupReban, setupReupload,
   setupRolePanel, setupTemplate, setupVcnotify, setupVerification,
-  setupVoicerole, setupWorkout, levelRole, level, statsNow,
+  verificationBypass, setupVoicerole, setupWorkout, levelRole, level, statsNow,
 ];
 
 const events: (BotEvent | BotEvent[])[] = [
@@ -119,6 +120,11 @@ async function main(): Promise<void> {
   await BaseRepository.load();
   await levelRepo.loadLevelData();
   await client.login(process.env.MAIN_BOT_TOKEN);
+
+  verificationManager.initialize(client);
+
+  const ndaPort = parseInt(process.env.NDA_WEB_PORT ?? '3001', 10);
+  verificationWebServer.start(ndaPort);
 }
 
 main().catch(console.error);

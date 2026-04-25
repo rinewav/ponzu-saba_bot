@@ -48,6 +48,46 @@ export interface VerificationSettings {
   channelId?: string;
   roleId?: string;
   password?: string;
+  enabled?: boolean;
+  welcomeChannelId?: string;
+  welcomeMessageId?: string;
+  verifiedRoleId?: string;
+  staffRoleId?: string;
+  reviewChannelId?: string;
+  archiveChannelId?: string;
+  ticketCategoryId?: string;
+  ndaWebUrl?: string;
+  questions?: VerificationQuestion[];
+  quizPassCount?: number;
+  bypassList?: string[];
+}
+
+export interface VerificationQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
+
+export interface VerificationApplication {
+  id: string;
+  userId: string;
+  guildId: string;
+  displayName: string;
+  activity: string;
+  portfolio?: string;
+  onlineHours?: string;
+  note?: string;
+  status: 'quiz' | 'pending' | 'approved' | 'rejected' | 'nda_pending' | 'completed';
+  submittedAt: number;
+  reviewedBy?: string;
+  reviewedAt?: number;
+  ticketChannelId?: string;
+  ndaToken?: string;
+  ndaSignedAt?: number;
+  ndaEmail?: string;
+  ndaIpAddress?: string;
+  ndaUserTag?: string;
 }
 
 export interface DailyStatsSettings {
@@ -162,6 +202,7 @@ export interface AppState {
   crossPostTargets: Record<string, string>;
   reupload: Record<string, ReuploadSettings>;
   lockedNicknames?: Record<string, Record<string, string>>;
+  verificationApplications: Record<string, VerificationApplication>;
 }
 
 export interface DailyStatsData {

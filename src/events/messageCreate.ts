@@ -2,7 +2,6 @@ import { Events, type Message } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { kikisenRepo } from '../lib/repositories/index.js';
 import { workoutNotifyManager } from '../lib/workoutNotifyManager.js';
-import { verificationManager } from '../lib/verificationManager.js';
 import { crossPostManager } from '../lib/crossPostManager.js';
 import { reuploadManager } from '../lib/reuploadManager.js';
 
@@ -20,8 +19,6 @@ export default {
 
     if (message.author.bot) return;
 
-    // 各種メッセージハンドラーを呼び出し
-    await verificationManager.handleVerification(message);
     await workoutNotifyManager.handleMessage(message);
     await crossPostManager.handleMessage(message);
     await reuploadManager.handleMessage(message);

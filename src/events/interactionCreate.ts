@@ -1,6 +1,7 @@
 import { Events, type Interaction } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { rolePanelManager } from '../lib/rolePanelManager.js';
+import { verificationManager } from '../lib/verificationManager.js';
 import { cleanupRepo } from '../lib/repositories/index.js';
 
 export default {
@@ -29,30 +30,47 @@ export default {
       return;
     }
 
+    if (interaction.isButton()) {
+      const customId = interaction.customId;
+
+      if (customId.startsWith('v_')) {
+        await verificationManager.handleButtonInteraction(interaction);
+        return;
+      }
+
+      if (customId.startsWith('cleanup_')) {
+        const guildId = interaction.guildId;
+        if (!guildId) return;
+
+        const job = await cleanupRepo.getCleanupJob(guildId);
+        if (!job) {
+          await interaction.reply({ content: 'クリーンアップジョブが見つかりません。', ephemeral: true }).catch(() => {});
+          return;
+        }
+
+        if (customId.startsWith('cleanup_pause_')) {
+          await cleanupRepo.updateCleanupJob(guildId, { isPaused: true });
+          await interaction.reply({ content: 'クリーンアップを一時停止しました。', ephemeral: true }).catch(() => {});
+        } else if (customId.startsWith('cleanup_resume_')) {
+          await cleanupRepo.updateCleanupJob(guildId, { isPaused: false });
+          await interaction.reply({ content: 'クリーンアップを再開しました。', ephemeral: true }).catch(() => {});
+        }
+      }
+      return;
+    }
+
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith('v_')) {
+        await verificationManager.handleModalSubmit(interaction);
+        return;
+      }
+    }
+
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId.startsWith('role_panel_select')) {
         await rolePanelManager.handleInteraction(interaction);
       }
       return;
-    }
-
-    if (interaction.isButton() && interaction.customId.startsWith('cleanup_')) {
-      const guildId = interaction.guildId;
-      if (!guildId) return;
-
-      const job = await cleanupRepo.getCleanupJob(guildId);
-      if (!job) {
-        await interaction.reply({ content: 'クリーンアップジョブが見つかりません。', ephemeral: true }).catch(() => {});
-        return;
-      }
-
-      if (interaction.customId.startsWith('cleanup_pause_')) {
-        await cleanupRepo.updateCleanupJob(guildId, { isPaused: true });
-        await interaction.reply({ content: 'クリーンアップを一時停止しました。', ephemeral: true }).catch(() => {});
-      } else if (interaction.customId.startsWith('cleanup_resume_')) {
-        await cleanupRepo.updateCleanupJob(guildId, { isPaused: false });
-        await interaction.reply({ content: 'クリーンアップを再開しました。', ephemeral: true }).catch(() => {});
-      }
     }
   },
 } satisfies BotEvent;
