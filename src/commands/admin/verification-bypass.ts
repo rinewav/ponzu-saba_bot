@@ -21,6 +21,11 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(sub =>
     sub.setName('list').setDescription('バイパスリストを表示します。'),
+  )
+  .addSubcommand(sub =>
+    sub.setName('bulk')
+      .setDescription('【一時用】サーバー全メンバーを一括バイパスしNDA署名へ進めます。')
+      .addBooleanOption(opt => opt.setName('confirm').setDescription('trueで実行').setRequired(true)),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -82,6 +87,94 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           .setDescription(bypassList.map(id => `<@${id}>`).join('\n'));
       }
       await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
+
+    case 'bulk': {
+      const confirm = interaction.options.getBoolean('confirm', true);
+      if (!confirm) {
+        embed.setColor(0xFF0000).setTitle('❌ キャンセル').setDescription('confirm を true に設定して実行してください。');
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      const settings = await verificationRepo.getVerificationSettings(guildId);
+      if (!settings?.enabled) {
+        embed.setColor(0xFF0000).setTitle('❌ エラー').setDescription('参加認証が有効ではありません。');
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const guild = await interaction.client.guilds.fetch(guildId);
+      await guild.members.fetch();
+      const members = [...guild.members.cache.values()];
+
+      const bypassList = settings.bypassList ?? [];
+      const verifiedRoleId = settings.verifiedRoleId;
+
+      const targets = members.filter(m => {
+        if (m.user.bot) return false;
+        if (bypassList.includes(m.id)) return false;
+        if (verifiedRoleId && m.roles.cache.has(verifiedRoleId)) return false;
+        if (verificationRepo.getActiveApplicationByUser(guildId, m.id)) return false;
+        return true;
+      });
+
+      if (targets.length === 0) {
+        embed.setColor(0xFFAA00).setTitle('⚠️ 対象なし').setDescription('バイパス対象のメンバーがいません。');
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+
+      const BATCH_SIZE = 5;
+      const BATCH_DELAY_MS = 3000;
+      let success = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < targets.length; i += BATCH_SIZE) {
+        const batch = targets.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (m) => {
+          try {
+            await verificationRepo.addBypass(guildId, m.id);
+
+            const appId = randomUUID();
+            await verificationRepo.setApplication(appId, {
+              id: appId,
+              userId: m.id,
+              guildId,
+              displayName: m.user.username,
+              activity: '一括バイパス',
+              status: 'approved',
+              submittedAt: Date.now(),
+              reviewedBy: interaction.user.id,
+              reviewedAt: Date.now(),
+            });
+
+            await verificationManager.createTicketChannel(
+              verificationRepo.getApplication(appId)!,
+            );
+            success++;
+          } catch (e) {
+            skipped++;
+            errors.push(`${m.user.tag}: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }));
+
+        if (i + BATCH_SIZE < targets.length) {
+          await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+        }
+      }
+
+      let desc = `**対象**: ${targets.length}人\n**成功**: ${success}人\n**スキップ**: ${skipped}人`;
+      if (errors.length > 0) {
+        desc += `\n\n**エラー**:\n${errors.slice(0, 10).join('\n')}`;
+      }
+
+      embed.setColor(0x00FF00).setTitle(`✅ 一括バイパス完了`).setDescription(desc);
+      await interaction.editReply({ embeds: [embed] });
       break;
     }
   }
