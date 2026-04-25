@@ -131,17 +131,13 @@ export class VerificationManager {
 
     const existing = verificationRepo.getActiveApplicationByUser(guildId, userId);
     if (existing) {
-      if (existing.status === 'quiz' && !this.activeQuizzes.has(userId)) {
+      if (existing.status === 'quiz') {
+        this.activeQuizzes.delete(userId);
         await verificationRepo.deleteApplication(existing.id);
       } else {
         await interaction.reply({ content: 'すでに申請中です。承認をお待ちください。', ephemeral: true });
         return;
       }
-    }
-
-    if (this.activeQuizzes.has(userId)) {
-      await interaction.reply({ content: 'すでにクイズ進行中です。現在の質問にお答えください。', ephemeral: true });
-      return;
     }
 
     const appId = randomUUID();
