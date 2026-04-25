@@ -131,8 +131,12 @@ export class VerificationManager {
 
     const existing = verificationRepo.getActiveApplicationByUser(guildId, userId);
     if (existing) {
-      await interaction.reply({ content: 'すでに申請中です。承認をお待ちください。', ephemeral: true });
-      return;
+      if (existing.status === 'quiz' && !this.activeQuizzes.has(userId)) {
+        await verificationRepo.deleteApplication(existing.id);
+      } else {
+        await interaction.reply({ content: 'すでに申請中です。承認をお待ちください。', ephemeral: true });
+        return;
+      }
     }
 
     if (this.activeQuizzes.has(userId)) {
