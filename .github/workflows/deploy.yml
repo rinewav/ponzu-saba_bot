@@ -1,0 +1,24 @@
+name: Deploy Discord Bot
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Deploy commands
+        run: npm run deploy
+
+      - name: Restart Bot with PM2
+        run: pm2 restart ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production

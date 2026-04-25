@@ -42,4 +42,8 @@ jobs:
               }]
             }' > payload.json
 
-          curl -X POST -H "Content-Type: application/json" -d @payload.json "$DISCORD_WEBHOOK_URL"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -sf -X POST -H "Content-Type: application/json" -d @payload.json "$DISCORD_WEBHOOK_URL"
+          else
+            echo "DISCORD_WEBHOOK_URL is not set, skipping notification."
+          fi
