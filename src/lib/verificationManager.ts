@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import {
   type Client,
   GuildMember,
@@ -20,6 +20,7 @@ import {
 } from 'discord.js';
 import { verificationRepo } from './repositories/index.js';
 import { CustomEmbed } from './customEmbed.js';
+import { generateNdaPdf } from './ndaPdfGenerator.js';
 import type { VerificationApplication, VerificationQuestion, VerificationSettings } from '../types/index.js';
 
 interface ActiveQuiz {
@@ -587,17 +588,38 @@ export class VerificationManager {
       const channel = await guild.channels.fetch(application.ticketChannelId).catch(() => null) as TextChannel | null;
       if (channel) {
         const signedAt = new Date(application.ndaSignedAt!).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
-        const ndaFileContent = this.generateNdaFile(application, signedAt);
-        const filename = `NDA_${application.displayName.replace(/[^a-zA-Z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g, '_')}_${new Date(application.ndaSignedAt!).toISOString().slice(0, 10)}.txt`;
-        const attachment = new AttachmentBuilder(Buffer.from(ndaFileContent, 'utf-8'), { name: filename });
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ NDA署名が完了しました')
-          .setDescription(`${member} さんの参加処理が完了しました。\n署名記録ファイルを添付しています。大切に保管してください。`)
-          .setColor(0x00FF00)
-          .setTimestamp();
+        try {
+          const pdfBuffer = await generateNdaPdf({
+            displayName: application.displayName,
+            userTag: application.ndaUserTag ?? '不明',
+            email: application.ndaEmail,
+            ipAddress: application.ndaIpAddress ?? '不明',
+            signedAt,
+            fingerprint: application.ndaFingerprint,
+          });
 
-        await channel.send({ embeds: [embed], files: [attachment] });
+          const hash = createHash('sha256').update(pdfBuffer).digest('hex');
+          const filename = `NDA_${application.displayName.replace(/[^a-zA-Z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g, '_')}_${new Date(application.ndaSignedAt!).toISOString().slice(0, 10)}.pdf`;
+          const attachment = new AttachmentBuilder(pdfBuffer, { name: filename });
+
+          const embed = new EmbedBuilder()
+            .setTitle('✅ NDA署名が完了しました')
+            .setDescription(`${member} さんの参加処理が完了しました。\n署名記録PDFを添付しています。大切に保管してください。`)
+            .setColor(0x00FF00)
+            .addFields({ name: 'PDFハッシュ (SHA-256)', value: `\`${hash}\`` })
+            .setTimestamp();
+
+          await channel.send({ embeds: [embed], files: [attachment] });
+        } catch (error) {
+          console.error('[NDA] PDF生成エラー:', error);
+          const fallbackEmbed = new EmbedBuilder()
+            .setTitle('✅ NDA署名が完了しました')
+            .setDescription(`${member} さんの参加処理は完了しましたが、PDF生成に失敗しました。`)
+            .setColor(0xFFAA00)
+            .setTimestamp();
+          await channel.send({ embeds: [fallbackEmbed] });
+        }
 
         await channel.permissionOverwrites.edit(application.userId, {
           ViewChannel: true,
@@ -681,46 +703,6 @@ export class VerificationManager {
     }
 
     await channel.send({ embeds: [embed] });
-  }
-  private generateNdaFile(application: VerificationApplication, signedAt: string): string {
-    const ndaText = `【秘密保持契約（NDA）】
-
-「ぽん酢鯖」運営代表 きる山ぽぽ美（以下「甲」という）と、ぽん酢鯖への参加を希望する者（以下「乙」という）は、クリエイターズコミュニティ「ぽん酢鯖」（以下「本サーバー」という）の利用にあたり、以下の通り秘密保持に関する同意書（以下「本契約」という）を締結します。
-第1条（秘密情報）
-本契約において「秘密情報」とは、本サーバー内で甲または他の参加者が開示・共有した一切の情報（テキスト発言、画像、動画、音声、イラスト、ポートフォリオ、制作過程のアイデア、個人情報などを含みますがこれらに限定されません）を指します。
-第2条（秘密保持義務と禁止事項）
-	1.	乙は、秘密情報を厳重に管理し、甲および当該情報の開示者の事前の明確な許可なく、いかなる第三者にも開示、提供、漏洩してはなりません。
-	2.	乙は、本サーバー内の出来事や話題について、外部のSNS（X、Instagram、Bluesky等）、他のDiscordサーバー、ブログ、動画配信、またはオフラインの会話などで言及することを一切禁止されます。
-	3.	乙は、本サーバー内の画面をスクリーンショット等で撮影・保存し、これを外部へ公開または共有する行為を固く禁止されます。
-第3条（未成年者の参加）
-乙が未成年者（18歳未満）である場合、乙は本契約に同意し本サーバーに参加することについて、必ず親権者等法定代理人の同意を得るものとします。乙が本契約への同意手続きを行った時点で、法定代理人の同意を得ているものとみなします。
-第4条（契約違反時の措置）
-乙が本契約のいずれかの条項に違反した、または違反する恐れがあると甲が判断した場合、甲は乙に対して事前の通知や勧告を行うことなく、即座に本サーバーからの強制退出（BAN）措置を行うことができるものとします。
-第5条（存続条項）
-乙が本サーバーを退出（自主的な退出、および前条に基づく強制退出を含みます）した後においても、第1条および第2条に定める秘密保持義務は有効に存続し、乙はこれに従うものとします。
-以上、本契約の内容を十分に理解し、すべての条項に同意した証として、以下のフォームより電磁的記録による署名を行います。`;
-
-    return [
-      '='.repeat(60),
-      'ぽん酢鯖 秘密保持契約（NDA）署名記録',
-      '='.repeat(60),
-      '',
-      `署名日時: ${signedAt}`,
-      `署名者表示名: ${application.displayName}`,
-      `Discordアカウント: ${application.ndaUserTag ?? '不明'}`,
-      `メールアドレス: ${application.ndaEmail ?? '未取得'}`,
-      `署名時IPアドレス: ${application.ndaIpAddress ?? '不明'}`,
-      '',
-      '-'.repeat(60),
-      'NDA条項',
-      '-'.repeat(60),
-      '',
-      ndaText,
-      '',
-      '-'.repeat(60),
-      '上記の通り、電磁的記録により署名を行いました。',
-      '='.repeat(60),
-    ].join('\n');
   }
 }
 

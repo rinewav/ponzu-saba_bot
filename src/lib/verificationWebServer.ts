@@ -4,27 +4,11 @@ import { createServer as createHttpsServer } from 'node:https';
 import { join } from 'node:path';
 import { verificationManager } from './verificationManager.js';
 import { verificationRepo } from './repositories/index.js';
+import { NDA_TEXT, generateNdaPdf } from './ndaPdfGenerator.js';
 
 const getClientId = () => process.env.CLIENT_ID ?? '';
 const getClientSecret = () => process.env.DISCORD_CLIENT_SECRET ?? '';
 const getNdaPublicUrl = () => process.env.NDA_PUBLIC_URL ?? 'http://localhost:3001';
-
-const NDA_TEXT = `【秘密保持契約（NDA）】
-
-「ぽん酢鯖」運営代表 きる山ぽぽ美（以下「甲」という）と、ぽん酢鯖への参加を希望する者（以下「乙」という）は、クリエイターズコミュニティ「ぽん酢鯖」（以下「本サーバー」という）の利用にあたり、以下の通り秘密保持に関する同意書（以下「本契約」という）を締結します。
-第1条（秘密情報）
-本契約において「秘密情報」とは、本サーバー内で甲または他の参加者が開示・共有した一切の情報（テキスト発言、画像、動画、音声、イラスト、ポートフォリオ、制作過程のアイデア、個人情報などを含みますがこれらに限定されません）を指します。
-第2条（秘密保持義務と禁止事項）
-	1.	乙は、秘密情報を厳重に管理し、甲および当該情報の開示者の事前の明確な許可なく、いかなる第三者にも開示、提供、漏洩してはなりません。
-	2.	乙は、本サーバー内の出来事や話題について、外部のSNS（X、Instagram、Bluesky等）、他のDiscordサーバー、ブログ、動画配信、またはオフラインの会話などで言及することを一切禁止されます。
-	3.	乙は、本サーバー内の画面をスクリーンショット等で撮影・保存し、これを外部へ公開または共有する行為を固く禁止されます。
-第3条（未成年者の参加）
-乙が未成年者（18歳未満）である場合、乙は本契約に同意し本サーバーに参加することについて、必ず親権者等法定代理人の同意を得るものとします。乙が本契約への同意手続きを行った時点で、法定代理人の同意を得ているものとみなします。
-第4条（契約違反時の措置）
-乙が本契約のいずれかの条項に違反した、または違反する恐れがあると甲が判断した場合、甲は乙に対して事前の通知や勧告を行うことなく、即座に本サーバーからの強制退出（BAN）措置を行うことができるものとします。
-第5条（存続条項）
-乙が本サーバーを退出（自主的な退出、および前条に基づく強制退出を含みます）した後においても、第1条および第2条に定める秘密保持義務は有効に存続し、乙はこれに従うものとします。
-以上、本契約の内容を十分に理解し、すべての条項に同意した証として、以下のフォームより電磁的記録による署名を行います。`;
 
 const HTML_HEAD = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ぽん酢鯖 - NDA署名</title><style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
@@ -35,11 +19,13 @@ h1{color:#ffd700;margin-bottom:20px;font-size:1.5em}
 .btn:hover{transform:scale(1.02)}
 .btn-primary{background:#e94560;color:#fff}
 .btn-secondary{background:#533483;color:#fff}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
 .center{text-align:center}
 .error{color:#e94560}
 .success{color:#00c853}
 p{margin:12px 0;line-height:1.6}
 .warn{background:#2d1b4e;border:1px solid #533483;border-radius:8px;padding:16px;margin:16px 0;font-size:.9em;line-height:1.6}
+.warn-scroll{background:#3d2b1b;border:1px solid #e94560;border-radius:8px;padding:16px;margin:16px 0;font-size:.9em;line-height:1.6;text-align:center}
 .footer{text-align:center;margin-top:24px;color:#666;font-size:.8em}
 </style></head><body><div class="card">`;
 
@@ -52,36 +38,6 @@ function getClientIp(req: Request): string {
   if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
   if (Array.isArray(forwarded)) return forwarded[0].trim();
   return req.ip ?? req.socket.remoteAddress ?? 'unknown';
-}
-
-function generateNdaFileContent(data: {
-  displayName: string;
-  userTag: string;
-  email?: string;
-  ipAddress: string;
-  signedAt: string;
-}): string {
-  return [
-    '='.repeat(60),
-    'ぽん酢鯖 秘密保持契約（NDA）署名記録',
-    '='.repeat(60),
-    '',
-    `署名日時: ${data.signedAt}`,
-    `署名者表示名: ${data.displayName}`,
-    `Discordアカウント: ${data.userTag}`,
-    `メールアドレス: ${data.email ?? '未取得'}`,
-    `署名時IPアドレス: ${data.ipAddress}`,
-    '',
-    '-'.repeat(60),
-    'NDA条項',
-    '-'.repeat(60),
-    '',
-    NDA_TEXT,
-    '',
-    '-'.repeat(60),
-    '上記の通り、電磁的記録により署名を行いました。',
-    '='.repeat(60),
-  ].join('\n');
 }
 
 export class VerificationWebServer {
@@ -221,8 +177,11 @@ ${HTML_FOOT}`);
       application.ndaEmail = session?.email;
       application.ndaIpAddress = ip;
       application.ndaUserTag = session?.userTag;
-      await verificationRepo.setApplication(application.id, application);
 
+      const fingerprint = req.body?.fingerprint;
+      application.ndaFingerprint = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint ?? {});
+
+      await verificationRepo.setApplication(application.id, application);
       await verificationManager.completeNdaSigning(tokenInfo.appId);
       oauthSessions.delete(token);
 
@@ -246,69 +205,164 @@ ${HTML_FOOT}`);
       ? new Date(application.ndaSignedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
       : '不明';
 
-    const content = generateNdaFileContent({
-      displayName: application.displayName,
-      userTag: application.ndaUserTag ?? '不明',
-      email: application.ndaEmail,
-      ipAddress: application.ndaIpAddress ?? '不明',
-      signedAt,
-    });
+    try {
+      const pdfBuffer = await generateNdaPdf({
+        displayName: application.displayName,
+        userTag: application.ndaUserTag ?? '不明',
+        email: application.ndaEmail,
+        ipAddress: application.ndaIpAddress ?? '不明',
+        signedAt,
+        fingerprint: application.ndaFingerprint,
+      });
 
-    const filename = `NDA_${application.displayName.replace(/[^a-zA-Z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g, '_')}_${application.ndaSignedAt ? new Date(application.ndaSignedAt).toISOString().slice(0, 10) : 'unknown'}.txt`;
+      const filename = `NDA_${application.displayName.replace(/[^a-zA-Z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g, '_')}_${application.ndaSignedAt ? new Date(application.ndaSignedAt).toISOString().slice(0, 10) : 'unknown'}.pdf`;
 
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
-    res.send(content);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error('[NDA] PDF生成エラー:', error);
+      res.status(500).send(this.renderError('PDF生成中にエラーが発生しました。'));
+    }
   }
 
-  private renderNdaConsentPage(token: string, displayName: string, discordName: string): string {
+  private renderNdaConsentPage(token: string, _displayName: string, discordName: string): string {
     const escapedNda = NDA_TEXT.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     return `${HTML_HEAD}
 <h1>🍋 NDA署名</h1>
 <p><strong>${discordName}</strong> として認証されました。</p>
 <p>以下のNDA内容を確認のうえ、署名してください。</p>
-<div class="nda-text">${escapedNda}</div>
+<div class="nda-text" id="ndaText">${escapedNda}</div>
+<div class="warn-scroll" id="scrollWarning">
+  ⚠️ <strong>NDA内容を最後までスクロールして読まないと署名ボタンは押せません。下までスクロールしてください。</strong>
+</div>
 <div class="warn">
-⚠️ <strong>署名ボタンを押すと署名が完了すると同時に、契約記録ファイルがダウンロードされます。紛失しないようしっかり保管してください。</strong>
+  ⚠️ <strong>署名ボタンを押すと署名が完了すると同時に、契約記録PDFがダウンロードされます。紛失しないようしっかり保管してください。</strong>
 </div>
 <div class="center" style="margin-top:24px">
-  <button onclick="signNda('${token}')" class="btn btn-primary" id="signBtn">同意して署名する</button>
+  <button onclick="signNda('${token}')" class="btn btn-primary" id="signBtn" disabled>同意して署名する</button>
 </div>
 <p id="status" class="center"></p>
 <script>
-async function signNda(token) {
-  const btn = document.getElementById('signBtn');
-  const status = document.getElementById('status');
-  btn.disabled = true;
-  btn.textContent = '処理中...';
-  try {
-    const res = await fetch('/nda/' + token + '/sign', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      status.className = 'success center';
-      status.textContent = '署名が完了しました！契約記録をダウンロードしています...';
-      btn.style.display = 'none';
-      const a = document.createElement('a');
-      a.href = '/nda/' + token + '/download';
-      a.download = '';
+async function collectFingerprint(){
+  var fp={};
+  fp.userAgent=navigator.userAgent;
+  fp.platform=navigator.platform;
+  fp.language=navigator.language;
+  fp.languages=(navigator.languages||[]).join(', ');
+  fp.cookieEnabled=String(navigator.cookieEnabled);
+  fp.doNotTrack=navigator.doNotTrack||'unspecified';
+  fp.hardwareConcurrency=navigator.hardwareConcurrency||'N/A';
+  fp.maxTouchPoints=navigator.maxTouchPoints||0;
+  if(navigator.deviceMemory)fp.deviceMemory=navigator.deviceMemory+'GB';
+  fp.screenWidth=screen.width;
+  fp.screenHeight=screen.height;
+  fp.screenAvailWidth=screen.availWidth;
+  fp.screenAvailHeight=screen.availHeight;
+  fp.colorDepth=screen.colorDepth;
+  fp.pixelDepth=screen.pixelDepth;
+  fp.devicePixelRatio=window.devicePixelRatio;
+  fp.timezoneOffset=new Date().getTimezoneOffset();
+  try{fp.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){}
+  if(navigator.connection){
+    fp.connectionEffectiveType=navigator.connection.effectiveType;
+    fp.connectionDownlink=navigator.connection.downlink;
+    fp.connectionRtt=navigator.connection.rtt;
+    fp.connectionSaveData=String(navigator.connection.saveData);
+  }
+  try{
+    var c=document.createElement('canvas');c.width=200;c.height=50;
+    var ctx=c.getContext('2d');ctx.textBaseline='top';ctx.font='14px Arial';
+    ctx.fillStyle='#f60';ctx.fillRect(125,1,62,20);
+    ctx.fillStyle='#069';ctx.fillText('NDA verify 2026',2,15);
+    ctx.fillStyle='rgba(102,204,0,0.7)';ctx.fillText('NDA verify 2026',4,17);
+    fp.canvasDataLen=String(c.toDataURL().length);
+  }catch(e){}
+  try{
+    var c2=document.createElement('canvas');
+    var gl=c2.getContext('webgl')||c2.getContext('experimental-webgl');
+    if(gl){
+      var dbg=gl.getExtension('WEBGL_debug_renderer_info');
+      if(dbg){
+        fp.webglVendor=gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
+        fp.webglRenderer=gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+      }
+      fp.webglVersion=gl.getParameter(gl.VERSION);
+      fp.webglShadingLang=gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+      fp.webglMaxTextureSize=String(gl.getParameter(gl.MAX_TEXTURE_SIZE));
+      fp.webglMaxRenderbufferSize=String(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+      fp.webglMaxViewportDims=JSON.stringify(gl.getParameter(gl.MAX_VIEWPORT_DIMS));
+    }
+  }catch(e){}
+  try{
+    if(navigator.getBattery){
+      var b=await navigator.getBattery();
+      fp.batteryCharging=String(b.charging);
+      fp.batteryLevel=(b.level*100)+'%';
+    }
+  }catch(e){}
+  fp.pdfViewerEnabled=String(navigator.pdfViewerEnabled||'unknown');
+  try{fp.storageEstimate=JSON.stringify(await navigator.storage.estimate())}catch(e){}
+  fp.webdriver=String(navigator.webdriver||false);
+  fp.vendor=navigator.vendor||'unknown';
+  fp.productSub=navigator.productSub||'unknown';
+  return fp;
+}
+
+var ndaText=document.getElementById('ndaText');
+var signBtn=document.getElementById('signBtn');
+var scrollWarning=document.getElementById('scrollWarning');
+var scrolledToBottom=false;
+
+ndaText.addEventListener('scroll',function(){
+  var atBottom=ndaText.scrollHeight-ndaText.scrollTop-ndaText.clientHeight<5;
+  if(atBottom&&!scrolledToBottom){
+    scrolledToBottom=true;
+    signBtn.disabled=false;
+    scrollWarning.style.display='none';
+  }
+});
+
+var fpData=null;
+collectFingerprint().then(function(fp){fpData=fp});
+
+async function signNda(token){
+  var btn=document.getElementById('signBtn');
+  var status=document.getElementById('status');
+  btn.disabled=true;
+  btn.textContent='処理中...';
+  try{
+    var res=await fetch('/nda/'+token+'/sign',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fingerprint:fpData||{}})
+    });
+    var data=await res.json();
+    if(data.success){
+      status.className='success center';
+      status.textContent='署名が完了しました！契約記録PDFをダウンロードしています...';
+      btn.style.display='none';
+      var a=document.createElement('a');
+      a.href='/nda/'+token+'/download';
+      a.download='';
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setTimeout(function() {
-        status.textContent = '署名が完了しました！契約記録をダウンロードしています... 完了。Discordに戻ってください。';
-      }, 2000);
-    } else {
-      status.className = 'error center';
-      status.textContent = data.error || 'エラーが発生しました。';
-      btn.disabled = false;
-      btn.textContent = '同意して署名する';
+      setTimeout(function(){
+        status.textContent='署名が完了しました！契約記録PDFをダウンロードしています... 完了。Discordに戻ってください。';
+      },2000);
+    }else{
+      status.className='error center';
+      status.textContent=data.error||'エラーが発生しました。';
+      btn.disabled=false;
+      btn.textContent='同意して署名する';
     }
-  } catch (e) {
-    status.className = 'error center';
-    status.textContent = '通信エラーが発生しました。';
-    btn.disabled = false;
-    btn.textContent = '同意して署名する';
+  }catch(e){
+    status.className='error center';
+    status.textContent='通信エラーが発生しました。';
+    btn.disabled=false;
+    btn.textContent='同意して署名する';
   }
 }
 </script>

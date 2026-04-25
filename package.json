@@ -20,13 +20,15 @@
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "node-cron": "^4.2.1",
+    "pdfkit": "^0.18.0",
     "valid-url": "^1.0.9"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "tsx": "^4.21.0",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
+    "@types/pdfkit": "^0.17.6",
     "@types/valid-url": "^1.0.4",
-    "@types/express": "^5.0.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

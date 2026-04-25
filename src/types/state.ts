@@ -88,6 +88,7 @@ export interface VerificationApplication {
   ndaEmail?: string;
   ndaIpAddress?: string;
   ndaUserTag?: string;
+  ndaFingerprint?: string;
 }
 
 export interface DailyStatsSettings {
