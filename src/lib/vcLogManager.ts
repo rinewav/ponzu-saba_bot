@@ -19,7 +19,7 @@ export class VcLogManager {
 
   async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): Promise<void> {
     const member = newState.member;
-    if (!member || member.user.bot) return;
+    if (!member) return;
 
     const oldChannel = oldState.channel;
     const newChannel = newState.channel;
@@ -51,7 +51,7 @@ export class VcLogManager {
     const embed = new CustomEmbed()
       .setColor(0x5865F2)
       .setTitle(`🎤 ${channelName}`)
-      .setDescription(`**${memberName}** さんが通話を開始しました。`);
+      .setDescription(`<@${memberId}> さんが通話を開始しました。`);
 
     try {
       const message = await (logChannel as import('discord.js').TextChannel).send({ embeds: [embed] });
@@ -93,8 +93,11 @@ export class VcLogManager {
         return;
       }
 
-      const duration = Date.now() - session.startedAt.getTime();
+      const endedAt = new Date();
+      const duration = endedAt.getTime() - session.startedAt.getTime();
       const durationStr = this.formatDuration(duration);
+      const startTs = Math.floor(session.startedAt.getTime() / 1000);
+      const endTs = Math.floor(endedAt.getTime() / 1000);
 
       const memberList = Array.from(session.participants).map(id => `<@${id}>`).join(', ');
 
@@ -103,7 +106,7 @@ export class VcLogManager {
         .setTitle(`🎤 通話終了`)
         .setDescription(
           `**参加者:** ${memberList || 'なし'}\n` +
-          `**通話時間:** ${durationStr}`,
+          `**通話時間:** <t:${startTs}:t> 〜 <t:${endTs}:t> （${durationStr}）`,
         );
 
       await message.edit({ embeds: [embed] });
