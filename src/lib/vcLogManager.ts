@@ -159,16 +159,16 @@ export class VcLogManager {
     const session = this.activeSessions.get(vcChannelId);
     if (!session) return;
 
-    session.participants.delete(memberId);
-    await vcLogRepo.removeParticipant(vcChannelId, memberId);
-
     const vcChannel = await this.client!.channels.fetch(vcChannelId).catch(() => null);
     const isEmpty = !vcChannel || !('members' in vcChannel) || (vcChannel as import('discord.js').VoiceChannel).members.size === 0;
 
-    if (!isEmpty) return;
-
-    this.activeSessions.delete(vcChannelId);
-    await this.finalizeSession(vcChannelId, guildId, session.messageId, session.logChannelId, session.startedAt, session.participants);
+    if (isEmpty) {
+      this.activeSessions.delete(vcChannelId);
+      await this.finalizeSession(vcChannelId, guildId, session.messageId, session.logChannelId, session.startedAt, session.participants);
+    } else {
+      session.participants.delete(memberId);
+      await vcLogRepo.removeParticipant(vcChannelId, memberId);
+    }
   }
 
   private async finalizeSession(vcChannelId: string, guildId: string, messageId: string, logChannelId: string, startedAt: Date, participants: Set<string>): Promise<void> {
