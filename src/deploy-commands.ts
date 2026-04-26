@@ -7,26 +7,9 @@ import cleanup from './commands/admin/cleanup.js';
 import kikisenManage from './commands/admin/kikisen-manage.js';
 import levelEdit from './commands/admin/level-edit.js';
 import reload from './commands/admin/reload.js';
-import setupAfk from './commands/admin/setup-afk.js';
-import setupCleanup from './commands/admin/setup-cleanup.js';
-import setupCrosspost from './commands/admin/setup-crosspost.js';
-import setupDailystats from './commands/admin/setup-dailystats.js';
-import setupIntroduction from './commands/admin/setup-introduction.js';
-import setupKikisenlog from './commands/admin/setup-kikisenlog.js';
-import setupLevel from './commands/admin/setup-level.js';
-import setupLogs from './commands/admin/setup-logs.js';
-import setupMessageId from './commands/admin/setup-message-id.js';
-import setupReban from './commands/admin/setup-reban.js';
-import setupReupload from './commands/admin/setup-reupload.js';
-import setupRolePanel from './commands/admin/setup-role-panel.js';
-import setupTemplate from './commands/admin/setup-template.js';
-import setupVcnotify from './commands/admin/setup-vcnotify.js';
 import setup from './commands/admin/setup.js';
-import setupVerification from './commands/admin/setup-verification.js';
 import verificationBypass from './commands/admin/verification-bypass.js';
 import verificationReset from './commands/admin/verification-reset.js';
-import setupVoicerole from './commands/admin/setup-voicerole.js';
-import setupWorkout from './commands/admin/setup-workout.js';
 import levelRole from './commands/level-role.js';
 import level from './commands/level.js';
 import statsNow from './commands/stats-now.js';
@@ -36,11 +19,8 @@ const guildIds = (process.env.GUILD_IDS || '').split(',').filter(Boolean);
 const token = process.env.MAIN_BOT_TOKEN!;
 
 const commands: BotCommand[] = [
-  cleanup, setup, kikisenManage, levelEdit, reload, setupAfk, setupCleanup,
-  setupCrosspost, setupDailystats, setupIntroduction, setupKikisenlog,
-  setupLevel, setupLogs, setupMessageId, setupReban, setupReupload,
-  setupRolePanel, setupTemplate, setupVcnotify, setupVerification,
-  verificationBypass, verificationReset, setupVoicerole, setupWorkout, levelRole, level, statsNow,
+  cleanup, setup, kikisenManage, levelEdit, reload,
+  verificationBypass, verificationReset, levelRole, level, statsNow,
 ];
 
 async function main(): Promise<void> {

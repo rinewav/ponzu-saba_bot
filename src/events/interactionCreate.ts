@@ -3,8 +3,7 @@ import type { BotEvent } from '../types/index.js';
 import { rolePanelManager } from '../lib/rolePanelManager.js';
 import { verificationManager } from '../lib/verificationManager.js';
 import { cleanupRepo } from '../lib/repositories/index.js';
-import { handleSetupSelectMenu as handleVerificationSelectMenu, handleSetupModal as handleVerificationModal, handleSetupButton as handleVerificationButton } from '../commands/admin/setup-verification.js';
-import { handleSetupSelectMenu, handleSetupModal, handleSetupButton } from '../commands/admin/setup.js';
+import { handleSetupSelectMenu, handleSetupModal, handleSetupButton, handleVerificationSelectMenu } from '../commands/admin/setup.js';
 
 export default {
   name: Events.InteractionCreate,
@@ -36,7 +35,7 @@ export default {
       const customId = interaction.customId;
 
       if (customId === 'sv_back' || customId.startsWith('sv_delq_') || customId === 'sv_form_add' || customId === 'sv_form_reset' || customId.startsWith('sv_formdel_')) {
-        await handleVerificationButton(interaction);
+        await handleSetupButton(interaction);
         return;
       }
 
@@ -73,7 +72,7 @@ export default {
 
     if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith('sv_modal_')) {
-        await handleVerificationModal(interaction);
+        await handleSetupModal(interaction);
         return;
       }
       if (interaction.customId.startsWith('setup_m_')) {
