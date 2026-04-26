@@ -1,6 +1,6 @@
 # 🍋 ぽん酢鯖 Official Bot
 
-プロアマクリエイターズコミュニティ「ぽん酢鯖」の管理用 Discord ボットです。TypeScript + ESM で構築されています。
+プロアマクリエイターズコミュニティ「ぽん酢鯖」の管理用Discord ボットです。TypeScript + ESM で構築されています。
 
 ## 機能一覧
 
