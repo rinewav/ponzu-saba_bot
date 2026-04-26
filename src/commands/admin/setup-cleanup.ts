@@ -8,6 +8,10 @@ export const data = new SlashCommandBuilder()
   .setDescription('【管理者のみ】クリーンアップ機能の設定を行います。')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .addSubcommand(sub =>
+    sub.setName('toggle')
+      .setDescription('退出時の自動クリーンアップをON/OFFします。'),
+  )
+  .addSubcommand(sub =>
     sub.setName('set-log-channel')
       .setDescription('クリーンアップログを送信するチャンネルを設定します。')
       .addChannelOption(opt =>
@@ -38,6 +42,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const embed = new CustomEmbed(interaction.user);
 
   switch (subcommand) {
+    case 'toggle': {
+      const settings = await cleanupRepo.getCleanupSettings(interaction.guild!.id);
+      const newState = !(settings?.enabled);
+      await cleanupRepo.setCleanupSetting(interaction.guild!.id, { enabled: newState });
+      embed.setColor(newState ? 0x00FF00 : 0xFFAA00)
+        .setTitle(newState ? '✅ 自動クリーンアップ ON' : '⛔ 自動クリーンアップ OFF')
+        .setDescription(`退出時の自動クリーンアップを${newState ? '有効' : '無効'}にしました。`);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+      break;
+    }
     case 'set-log-channel': {
       const channel = interaction.options.getChannel('channel', true);
       await cleanupRepo.setCleanupSetting(interaction.guild!.id, { logChannelId: channel.id });
@@ -68,6 +82,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         const excluded = settings.excludedChannels?.map((id: string) => `<#${id}>`).join(', ') || 'なし';
         embed.setColor(0x5865F2).setTitle('📋 クリーンアップ設定')
           .addFields(
+            { name: '自動クリーンアップ', value: settings.enabled ? '✅ ON' : '⛔ OFF', inline: true },
             { name: 'ログチャンネル', value: logChannel, inline: true },
             { name: '対象外チャンネル', value: excluded, inline: false },
           );

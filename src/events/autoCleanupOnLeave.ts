@@ -9,16 +9,25 @@ export default {
     const [member] = args as [GuildMember];
 
     const cleanupSettings = await cleanupRepo.getCleanupSettings(member.guild.id);
+    if (!cleanupSettings?.enabled) return;
 
-    if (cleanupSettings) {
-      const guild = member.guild;
-      try {
-        await guild.members.fetch();
-      } catch {
-        // メンバーキャッシュの更新に失敗しても処理を続行
+    try {
+      const bans = await member.guild.bans.fetch({ user: member.id }).catch(() => null);
+      if (bans) {
+        console.log(`[Cleanup] ${member.user.tag} はBANされているためクリーンアップをスキップします。`);
+        return;
       }
-
-      cleanupManager.executeCleanup(guild);
+    } catch {
+      // ban情報の取得に失敗した場合は続行
     }
+
+    const guild = member.guild;
+    try {
+      await guild.members.fetch();
+    } catch {
+      // メンバーキャッシュの更新に失敗しても処理を続行
+    }
+
+    cleanupManager.executeCleanup(guild);
   },
 } satisfies BotEvent;

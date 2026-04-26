@@ -66,6 +66,9 @@ export class CleanupManager {
           members = guild.members.cache;
         }
         const memberIds = Array.from(members.keys());
+        if (this.client.user?.id && !memberIds.includes(this.client.user.id)) {
+          memberIds.push(this.client.user.id);
+        }
         const excludedChannelIds = cleanupSettings.excludedChannels || [];
         const channels = guild.channels.cache.filter(ch => ch.isTextBased() && ch.viewable && !excludedChannelIds.includes(ch.id));
 
@@ -105,6 +108,7 @@ export class CleanupManager {
       }
 
       const memberIdSet = new Set(jobData.memberIds);
+      const botId = this.client.user?.id;
       this.client.user?.setActivity(`クリーンアップ: 0%`, { type: ActivityType.Playing });
 
       while (jobData.channelsToScan.length > 0) {
@@ -120,45 +124,54 @@ export class CleanupManager {
 
         if (channel && channel.isTextBased()) {
           console.log(`[クリーンアップ] #${channel.name} をスキャン中...`);
-          let lastId: string | undefined;
-          let fetchMore = true;
 
-          while (fetchMore) {
-            const messages = await (channel as import('discord.js').TextChannel).messages.fetch({ limit: 100, before: lastId }).catch(() => null);
-            if (!messages || messages.size === 0) { fetchMore = false; continue; }
+          const activeThreads = channel.isThread() ? [] : await (channel as import('discord.js').TextChannel).threads.fetchActive().catch(() => ({ threads: new Map() }));
+          const channelsToScan = [channel, ...('threads' in activeThreads ? (activeThreads as { threads: Map<string, import('discord.js').AnyThreadChannel> }).threads.values() : [])];
 
-            for (const message of messages.values()) {
-              let shouldDelete = false;
-              if (!memberIdSet.has(message.author.id)) {
-                shouldDelete = true;
-              } else {
-                const mentionedIds = this.extractMentionedUserIds(message);
-                for (const mentionedId of mentionedIds) {
-                  if (!memberIdSet.has(mentionedId)) {
-                    shouldDelete = true;
-                    break;
+          for (const scanTarget of channelsToScan) {
+            let lastId: string | undefined;
+            let fetchMore = true;
+
+            while (fetchMore) {
+              const messages = await (scanTarget as import('discord.js').TextChannel).messages.fetch({ limit: 100, before: lastId }).catch(() => null);
+              if (!messages || messages.size === 0) { fetchMore = false; continue; }
+
+              for (const message of messages.values()) {
+                if (message.author.id === botId) continue;
+                if (message.webhookId) continue;
+                if (message.author.system) continue;
+
+                let shouldDelete = false;
+                if (!memberIdSet.has(message.author.id)) {
+                  shouldDelete = true;
+                } else {
+                  const mentionedIds = this.extractMentionedUserIds(message);
+                  for (const mentionedId of mentionedIds) {
+                    if (!memberIdSet.has(mentionedId)) {
+                      shouldDelete = true;
+                      break;
+                    }
+                  }
+                }
+                if (shouldDelete) {
+                  await message.delete().catch(() => {});
+                  jobData.deletedMessages++;
+                  await new Promise(resolve => setTimeout(resolve, 1100));
+                  continue;
+                }
+                for (const reaction of message.reactions.cache.values()) {
+                  const users = await reaction.users.fetch().catch(() => null);
+                  if (!users) continue;
+                  for (const user of users.values()) {
+                    if (!memberIdSet.has(user.id)) {
+                      await reaction.users.remove(user.id).catch(() => {});
+                      jobData.deletedReactions++;
+                    }
                   }
                 }
               }
-              if (shouldDelete) {
-                await message.delete().catch(() => {});
-                jobData.deletedMessages++;
-                await new Promise(resolve => setTimeout(resolve, 1200));
-                continue;
-              }
-              for (const reaction of message.reactions.cache.values()) {
-                const users = await reaction.users.fetch().catch(() => null);
-                if (!users) continue;
-                for (const user of users.values()) {
-                  if (!memberIdSet.has(user.id)) {
-                    await reaction.users.remove(user.id).catch(() => {});
-                    jobData.deletedReactions++;
-                    await new Promise(resolve => setTimeout(resolve, 1200));
-                  }
-                }
-              }
+              lastId = messages.last()!.id;
             }
-            lastId = messages.last()!.id;
           }
         }
 

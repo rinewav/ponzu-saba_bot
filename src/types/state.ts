@@ -33,6 +33,7 @@ export interface GuildSettings {
 }
 
 export interface CleanupSettings {
+  enabled?: boolean;
   logChannelId?: string;
   excludedChannels?: string[];
 }
