@@ -1,4 +1,4 @@
-import { Events, type Interaction } from 'discord.js';
+import { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, type Interaction } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { rolePanelManager } from '../lib/rolePanelManager.js';
 import { verificationManager } from '../lib/verificationManager.js';
@@ -61,10 +61,16 @@ export default {
 
         if (customId.startsWith('cleanup_pause_')) {
           await cleanupRepo.updateCleanupJob(guildId, { isPaused: true });
-          await interaction.reply({ content: 'クリーンアップを一時停止しました。', ephemeral: true }).catch(() => {});
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId(`cleanup_resume_${guildId}`).setLabel('再開').setStyle(ButtonStyle.Success).setEmoji('▶️'),
+          );
+          await interaction.update({ components: [row] }).catch(() => {});
         } else if (customId.startsWith('cleanup_resume_')) {
           await cleanupRepo.updateCleanupJob(guildId, { isPaused: false });
-          await interaction.reply({ content: 'クリーンアップを再開しました。', ephemeral: true }).catch(() => {});
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId(`cleanup_pause_${guildId}`).setLabel('一時停止').setStyle(ButtonStyle.Secondary).setEmoji('⏸️'),
+          );
+          await interaction.update({ components: [row] }).catch(() => {});
         }
       }
       return;

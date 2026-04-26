@@ -197,6 +197,15 @@ export interface RolePanelData {
   roles: string[];
 }
 
+export interface VcLogSession {
+  messageId: string;
+  logChannelId: string;
+  vcChannelId: string;
+  guildId: string;
+  startedAt: number;
+  participants: string[];
+}
+
 export interface AppState {
   guildSettings: Record<string, GuildSettings>;
   activeChannels: Record<string, Omit<ActiveChannelData, 'id'>>;
@@ -209,6 +218,7 @@ export interface AppState {
   reupload: Record<string, ReuploadSettings>;
   lockedNicknames?: Record<string, Record<string, string>>;
   verificationApplications: Record<string, VerificationApplication>;
+  vcLogSessions?: Record<string, VcLogSession>;
 }
 
 export interface DailyStatsData {

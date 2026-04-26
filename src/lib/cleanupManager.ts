@@ -113,8 +113,20 @@ export class CleanupManager {
         let currentJobState = await cleanupRepo.getCleanupJob(guild.id);
         while (currentJobState?.isPaused) {
           console.log(`[クリーンアップ] 処理が一時停止されました (Guild: ${guild.id})`);
+          if (progressMessage) {
+            const pauseRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder().setCustomId(`cleanup_resume_${guild.id}`).setLabel('再開').setStyle(ButtonStyle.Success).setEmoji('▶️'),
+            );
+            await progressMessage.edit({ components: [pauseRow] }).catch(() => {});
+          }
           await new Promise(resolve => setTimeout(resolve, 5000));
           currentJobState = await cleanupRepo.getCleanupJob(guild.id);
+          if (!currentJobState?.isPaused && progressMessage) {
+            const resumeRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder().setCustomId(`cleanup_pause_${guild.id}`).setLabel('一時停止').setStyle(ButtonStyle.Secondary).setEmoji('⏸️'),
+            );
+            await progressMessage.edit({ components: [resumeRow] }).catch(() => {});
+          }
         }
 
         const channelId = jobData.channelsToScan[0];

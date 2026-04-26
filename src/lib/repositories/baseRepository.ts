@@ -16,6 +16,7 @@ const DEFAULT_STATE: AppState = {
   crossPostTargets: {},
   reupload: {},
   verificationApplications: {},
+  vcLogSessions: {},
 };
 
 let state: AppState = structuredClone(DEFAULT_STATE);

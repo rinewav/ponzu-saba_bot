@@ -26,7 +26,6 @@ import voiceStateUpdate from './events/voiceStateUpdate.js';
 import afkActivityTracker from './events/afkActivityTracker.js';
 import afkNicknameHandler from './events/afkNicknameHandler.js';
 import autoCleanupOnLeave from './events/autoCleanupOnLeave.js';
-import cleanupInteraction from './events/cleanupInteraction.js';
 import levelMessageCreate from './events/levelMessageCreate.js';
 import loggingHandler from './events/loggingHandler.js';
 import messageDelete from './events/messageDelete.js';
@@ -43,7 +42,7 @@ const commands: BotCommand[] = [
 const events: (BotEvent | BotEvent[])[] = [
   ready, interactionCreate, messageCreate, guildMemberAdd,
   guildMemberRemove, voiceStateUpdate, afkActivityTracker,
-  afkNicknameHandler, autoCleanupOnLeave, cleanupInteraction,
+  afkNicknameHandler, autoCleanupOnLeave,
   levelMessageCreate, loggingHandler, messageDelete, messageUpdate,
   messageVirusScan, rebanHandler, statsTracker,
 ];
