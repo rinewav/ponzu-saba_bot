@@ -1,7 +1,6 @@
 import {
   SlashCommandBuilder,
   PermissionFlagsBits,
-  ChannelType,
   type ChatInputCommandInteraction,
   type StringSelectMenuInteraction,
   type ButtonInteraction,
@@ -27,7 +26,14 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  await sendMainMenu(interaction);
+  try {
+    await sendMainMenu(interaction);
+  } catch (error) {
+    console.error('[Setup] /setup コマンドエラー:', error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'エラーが発生しました。', ephemeral: true }).catch(() => {});
+    }
+  }
 }
 
 const ch = (id?: string) => id ? `<#${id}>` : '未設定';
@@ -41,21 +47,21 @@ function mainMenuComponents(): ActionRowBuilder<StringSelectMenuBuilder> {
       .setCustomId('setup_menu')
       .setPlaceholder('設定する機能を選択...')
       .addOptions([
-        { label: '参加認証', description: 'クイズ・フォーム・NDA署名の設定', value: 'verification', emoji: '🛡️' },
-        { label: 'レベル', description: 'XP・レベルアップ・報酬ロール', value: 'level', emoji: '🔝' },
-        { label: 'AFK', description: '放置検知・自動移動', value: 'afk', emoji: '🛌' },
-        { label: 'クリーンアップ', description: '退出メンバーのメッセージ削除', value: 'cleanup', emoji: '🧹' },
-        { label: 'VC通知', description: '通話開始時の通知', value: 'vcnotify', emoji: '🔔' },
-        { label: 'VCロール', description: '通話参加中ロール付与', value: 'voicerole', emoji: '🎤' },
-        { label: '筋トレ通知', description: '24時間未報告リマインダー', value: 'workout', emoji: '💪' },
-        { label: 'デイリー統計', description: 'サーバー活動レポート', value: 'dailystats', emoji: '📊' },
-        { label: 'ロールパネル', description: 'セレクトメニュー式ロール選択', value: 'rolepanel', emoji: '🗳️' },
-        { label: 'クロスポスト', description: '他サーバーでの絵文字使用通知', value: 'crosspost', emoji: '👽' },
-        { label: 'ファイル再アップ', description: '添付ファイル自動バックアップ', value: 'reupload', emoji: '📁' },
-        { label: 'テンプレート', description: '自己紹介・定型メッセージ', value: 'template', emoji: '🧩' },
-        { label: 'ログ', description: '各種イベントのログ記録', value: 'logs', emoji: '📝' },
-        { label: '聞き専ログ', description: '聞き専チャンネルのログ', value: 'kikisenlog', emoji: '👁️‍🗨️' },
-        { label: '追い打ちBAN', description: '退出時の自動BAN', value: 'reban', emoji: '🔨' },
+        { label: '参加認証', description: 'クイズ・フォーム・NDA署名の設定', value: 'verification' },
+        { label: 'レベル', description: 'XP・レベルアップ・報酬ロール', value: 'level' },
+        { label: 'AFK', description: '放置検知・自動移動', value: 'afk' },
+        { label: 'クリーンアップ', description: '退出メンバーのメッセージ削除', value: 'cleanup' },
+        { label: 'VC通知', description: '通話開始時の通知', value: 'vcnotify' },
+        { label: 'VCロール', description: '通話参加中ロール付与', value: 'voicerole' },
+        { label: '筋トレ通知', description: '24時間未報告リマインダー', value: 'workout' },
+        { label: 'デイリー統計', description: 'サーバー活動レポート', value: 'dailystats' },
+        { label: 'ロールパネル', description: 'セレクトメニュー式ロール選択', value: 'rolepanel' },
+        { label: 'クロスポスト', description: '他サーバーでの絵文字使用通知', value: 'crosspost' },
+        { label: 'ファイル再アップ', description: '添付ファイル自動バックアップ', value: 'reupload' },
+        { label: 'テンプレート', description: '自己紹介・定型メッセージ', value: 'template' },
+        { label: 'ログ', description: '各種イベントのログ記録', value: 'logs' },
+        { label: '聞き専ログ', description: '聞き専チャンネルのログ', value: 'kikisenlog' },
+        { label: '追い打ちBAN', description: '退出時の自動BAN', value: 'reban' },
       ]),
   );
 }
