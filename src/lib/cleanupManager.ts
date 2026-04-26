@@ -1,4 +1,4 @@
-import { ActivityType, ButtonBuilder, ButtonStyle, ActionRowBuilder, type Client, type Guild, type Message } from 'discord.js';
+import { ButtonBuilder, ButtonStyle, ActionRowBuilder, type Client, type Guild, type Message } from 'discord.js';
 import { cleanupRepo } from './repositories/index.js';
 import { CustomEmbed } from './customEmbed.js';
 
@@ -49,7 +49,6 @@ export class CleanupManager {
     if (!this.client) { console.error('[クリーンアップ] Clientが初期化されていません。'); return; }
 
     processingGuilds.add(guild.id);
-    const originalActivity = this.client.user?.presence?.activities[0];
     const cleanupSettings = (await cleanupRepo.getCleanupSettings(guild.id)) || {};
     const logChannelId = cleanupSettings.logChannelId;
     const logChannel = logChannelId ? await guild.channels.fetch(logChannelId).catch(() => null) : null;
@@ -109,7 +108,6 @@ export class CleanupManager {
 
       const memberIdSet = new Set(jobData.memberIds);
       const botId = this.client.user?.id;
-      this.client.user?.setActivity(`クリーンアップ: 0%`, { type: ActivityType.Playing });
 
       while (jobData.channelsToScan.length > 0) {
         let currentJobState = await cleanupRepo.getCleanupJob(guild.id);
@@ -183,7 +181,6 @@ export class CleanupManager {
         });
 
         const progress = Math.round(((jobData.totalChannels - jobData.channelsToScan.length) / jobData.totalChannels) * 100);
-        this.client.user?.setActivity(`クリーンアップ: ${progress}%`, { type: ActivityType.Playing });
 
         if (progressMessage) {
           const progressEmbed = new CustomEmbed().setTitle('🧹 クリーンアップ処理中').setDescription('...').addFields({ name: '進捗', value: `${this.createProgressBar(progress)} ${progress}%` });
@@ -203,12 +200,6 @@ export class CleanupManager {
     } catch (error) {
       console.error(`[クリーンアップ] ${guild.name} でエラーが発生しました:`, error);
     } finally {
-      console.log('[クリーンアップ] 処理が完了したため、ボットのステータスを元に戻します。');
-      if (originalActivity) {
-        this.client.user?.setActivity(originalActivity.name, { type: originalActivity.type as ActivityType });
-      } else {
-        this.client.user?.setActivity('Welcome to ぽん酢鯖！', { type: ActivityType.Playing });
-      }
       processingGuilds.delete(guild.id);
     }
   }
