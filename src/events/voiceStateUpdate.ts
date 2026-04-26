@@ -4,7 +4,7 @@ import { kikisenManager } from '../lib/kikisenManager.js';
 import { levelManager } from '../lib/levelManager.js';
 import { afkManager } from '../lib/afkManager.js';
 import { voiceRoleManager } from '../lib/voiceRoleManager.js';
-import { vcNotifyManager } from '../lib/vcNotifyManager.js';
+import { vcLogManager } from '../lib/vcLogManager.js';
 import { dailyStatsManager } from '../lib/dailyStatsManager.js';
 
 export default {
@@ -16,7 +16,7 @@ export default {
     await levelManager.handleVoiceState(oldState, newState);
     await afkManager.handleVoiceStateUpdate(oldState, newState);
     await voiceRoleManager.handleVoiceStateUpdate(oldState, newState);
-    await vcNotifyManager.handleVoiceStateUpdate(oldState, newState);
+    await vcLogManager.handleVoiceStateUpdate(oldState, newState);
     await dailyStatsManager.trackVoiceState(oldState, newState);
   },
 } satisfies BotEvent;

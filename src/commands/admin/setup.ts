@@ -57,7 +57,7 @@ function mainMenuComponents(): ActionRowBuilder<StringSelectMenuBuilder> {
         { label: 'レベル', description: 'XP・レベルアップ・報酬ロール', value: 'level' },
         { label: 'AFK', description: '放置検知・自動移動', value: 'afk' },
         { label: 'クリーンアップ', description: '退出メンバーのメッセージ削除', value: 'cleanup' },
-        { label: 'VC通知', description: '通話開始時の通知', value: 'vcnotify' },
+        { label: 'VC通話ログ', description: '通話開始・終了ログの記録', value: 'vclog' },
         { label: 'VCロール', description: '通話参加中ロール付与', value: 'voicerole' },
         { label: '筋トレ通知', description: '24時間未報告リマインダー', value: 'workout' },
         { label: 'デイリー統計', description: 'サーバー活動レポート', value: 'dailystats' },
@@ -153,15 +153,15 @@ export async function handleSetupSelectMenu(interaction: StringSelectMenuInterac
       );
       await interaction.update({ embeds: [embed], components: [row, backButton()] });
     },
-    vcnotify: async () => {
+    vclog: async () => {
       const s = await vcNotifyRepo.getVcNotifySettings(guildId);
-      const embed = new CustomEmbed(interaction.user).setColor(0xFFAA00).setTitle('🔔 VC通知設定')
+      const embed = new CustomEmbed(interaction.user).setColor(0xFFAA00).setTitle('📝 VC通話ログ設定')
         .setDescription(
-          `通知チャンネル: ${ch(s?.notificationChannelId)}\n` +
+          `ログチャンネル: ${ch(s?.notificationChannelId)}\n` +
           `除外チャンネル: ${list(s?.excludedChannels)}`,
         );
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId('setup_vcn_ch').setLabel('📢 通知チャンネル').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('setup_vcn_ch').setLabel('📢 ログチャンネル').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('setup_vcn_addex').setLabel('➕ 除外追加').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('setup_vcn_delex').setLabel('➖ 除外削除').setStyle(ButtonStyle.Secondary),
       );
@@ -728,12 +728,12 @@ export async function handleSetupButton(interaction: ButtonInteraction): Promise
       },
     },
     setup_vcn_ch: {
-      modal: channelModal('setup_m_vcn_ch', 'VC通知チャンネル', 'テキストチャンネルID', '#vc-notify'),
+      modal: channelModal('setup_m_vcn_ch', 'VC通話ログチャンネル', 'テキストチャンネルID', '#vc-log'),
       handler: async (v) => {
         const cid = await resolveChannelId(guildId, v);
         if (!cid) throw new Error('無効なチャンネル');
         await vcNotifyRepo.setVcNotifySettings(guildId, { notificationChannelId: cid });
-        return `VC通知チャンネルを <#${cid}> に設定しました。`;
+        return `VC通話ログチャンネルを <#${cid}> に設定しました。`;
       },
     },
     setup_vr_set: {
@@ -1012,7 +1012,7 @@ export async function handleSetupModal(interaction: ModalSubmitInteraction): Pro
       const cid = await resolveChannelId(guildId, v);
       if (!cid) throw new Error('無効なチャンネル');
       await vcNotifyRepo.setVcNotifySettings(guildId, { notificationChannelId: cid });
-      return `VC通知チャンネルを <#${cid}> に設定しました。`;
+      return `VC通話ログチャンネルを <#${cid}> に設定しました。`;
     },
     setup_m_vr_set: async (v) => {
       const rid = v.replace(/[<@&>]/g, '').trim();
