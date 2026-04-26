@@ -23,13 +23,16 @@ export class VcLogManager {
 
     const oldChannel = oldState.channel;
     const newChannel = newState.channel;
+    const isBot = member.user.bot;
 
     if (oldChannel && oldChannel.id !== newChannel?.id) {
       await this.handleLeave(oldChannel.id, member.id, oldChannel.guild.id);
     }
 
-    if (newChannel && oldChannel?.id !== newChannel.id) {
+    if (!isBot && newChannel && oldChannel?.id !== newChannel.id) {
       await this.handleJoin(newChannel.id, member.id, member.displayName, newChannel.guild.id, newChannel.name);
+    } else if (isBot && newChannel && oldChannel?.id !== newChannel.id) {
+      this.addBotParticipant(newChannel.id, member.id);
     }
   }
 
@@ -65,6 +68,11 @@ export class VcLogManager {
     } catch (error) {
       console.error('[VCLog] ログメッセージの送信に失敗しました:', error);
     }
+  }
+
+  private addBotParticipant(channelId: string, botId: string): void {
+    const session = this.activeSessions.get(channelId);
+    if (session) session.participants.add(botId);
   }
 
   private async handleLeave(channelId: string, memberId: string, guildId: string): Promise<void> {
