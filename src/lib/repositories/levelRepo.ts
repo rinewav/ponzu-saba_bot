@@ -1,5 +1,5 @@
 import { BaseRepository } from './baseRepository.js';
-import type { VoiceRoleSettings, VoteReminderData, WorkoutSettings, WorkoutTimestampData, RolePanelData, LevelSettings, LevelUserData } from '../../types/index.js';
+import type { VoiceRoleSettings, WorkoutSettings, WorkoutTimestampData, RolePanelData, LevelSettings, LevelUserData } from '../../types/index.js';
 import { readFile as fsReadFile, writeFile as fsWriteFile } from 'node:fs/promises';
 import path from 'node:path';
 

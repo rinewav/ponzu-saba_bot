@@ -24,6 +24,7 @@ import setupReupload from './commands/admin/setup-reupload.js';
 import setupRolePanel from './commands/admin/setup-role-panel.js';
 import setupTemplate from './commands/admin/setup-template.js';
 import setupVcnotify from './commands/admin/setup-vcnotify.js';
+import setup from './commands/admin/setup.js';
 import setupVerification from './commands/admin/setup-verification.js';
 import verificationBypass from './commands/admin/verification-bypass.js';
 import verificationReset from './commands/admin/verification-reset.js';
@@ -50,10 +51,9 @@ import messageUpdate from './events/messageUpdate.js';
 import messageVirusScan from './events/messageVirusScan.js';
 import rebanHandler from './events/rebanHandler.js';
 import statsTracker from './events/statsTracker.js';
-import voteInteraction from './events/voteInteraction.js';
 
 const commands: BotCommand[] = [
-  cleanup, kikisenManage, levelEdit, reload, setupAfk, setupCleanup,
+  cleanup, setup, kikisenManage, levelEdit, reload, setupAfk, setupCleanup,
   setupCrosspost, setupDailystats, setupIntroduction, setupKikisenlog,
   setupLevel, setupLogs, setupMessageId, setupReban, setupReupload,
   setupRolePanel, setupTemplate, setupVcnotify, setupVerification,
@@ -65,7 +65,7 @@ const events: (BotEvent | BotEvent[])[] = [
   guildMemberRemove, voiceStateUpdate, afkActivityTracker,
   afkNicknameHandler, autoCleanupOnLeave, cleanupInteraction,
   levelMessageCreate, loggingHandler, messageDelete, messageUpdate,
-  messageVirusScan, rebanHandler, statsTracker, voteInteraction,
+  messageVirusScan, rebanHandler, statsTracker,
 ];
 
 const client = new Client({

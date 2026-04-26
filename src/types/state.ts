@@ -164,12 +164,6 @@ export interface EmbedData {
   fields?: { name: string; value: string; inline?: boolean }[];
 }
 
-export interface VoteReminderData {
-  guildId: string;
-  channelId: string;
-  notifyAt: number;
-}
-
 export interface VoiceSessionData {
   userId: string;
   channelId: string;
@@ -206,7 +200,6 @@ export interface RolePanelData {
 export interface AppState {
   guildSettings: Record<string, GuildSettings>;
   activeChannels: Record<string, Omit<ActiveChannelData, 'id'>>;
-  voteReminders: Record<string, VoteReminderData>;
   dailyStats: Record<string, DailyStatsData>;
   welcomeMessages: Record<string, string>;
   workoutTimestamps: Record<string, WorkoutTimestampData>;

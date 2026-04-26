@@ -18,7 +18,6 @@
 | 📊 デイリー統計         | サーバー活動レポート（グラフ付き）                                        | `/stats-now`, `/setup-dailystats`                             |
 | 🔔 VC通知               | 通話開始時の通知                                                          | `/setup-vcnotify`                                             |
 | 🎤 VCロール             | 通話参加中ロール付与                                                      | `/setup-voicerole`                                            |
-| 🗳️ 投票リマインダー     | 2時間後の再投票通知                                                       | （自動検知）                                                  |
 | 💪 筋トレ通知           | 24時間未報告時のリマインダー                                              | `/setup-workout`                                              |
 | 📊 ロールパネル         | セレクトメニュー式ロール選択                                              | `/role-panel`, `/setup-role-panel`                            |
 | 👽 クロスポスト通知     | 他サーバーでの絵文字/スタンプ使用通知                                     | `/setup-crosspost`                                            |
@@ -71,7 +70,6 @@ src/
 │   ├── cleanupManager.ts       # クリーンアップ
 │   ├── dailyStatsManager.ts    # デイリー統計
 │   ├── vcNotifyManager.ts      # VC通知
-│   ├── voiceRoleManager.ts     # VCロール
 │   ├── virusTotalManager.ts    # ウイルススキャン
 │   ├── reuploadManager.ts      # ファイル再アップ
 │   ├── logManager.ts           # ログ管理
@@ -79,7 +77,7 @@ src/
 │   ├── templateManager.ts      # テンプレート
 │   ├── workoutNotifyManager.ts # 筋トレ通知
 │   ├── crossPostManager.ts     # クロスポスト通知
-│   ├── voteReminderManager.ts  # 投票リマインダー
+│   ├── voiceRoleManager.ts     # VCロール
 │   ├── updateStatusChannels.ts # ステータスチャンネル更新
 │   ├── introductionTemplateEmbed.ts # 自己紹介テンプレート
 │   └── repositories/           # 状態永続化層（JSON）
@@ -93,7 +91,6 @@ src/
 │       ├── vcNotifyRepo.ts
 │       ├── rolePanelRepo.ts
 │       ├── workoutRepo.ts
-│       ├── voteReminderRepo.ts
 │       ├── miscRepo.ts
 │       └── index.ts
 ├── commands/                   # スラッシュコマンド
@@ -137,7 +134,6 @@ src/
 │   ├── levelMessageCreate.ts
 │   ├── statsTracker.ts
 │   ├── loggingHandler.ts
-│   ├── voteInteraction.ts
 │   ├── cleanupInteraction.ts
 │   ├── messageVirusScan.ts
 │   ├── afkNicknameHandler.ts

@@ -23,26 +23,36 @@ export class VcNotifyManager {
       console.log(`[VCNotify] #${oldChannel.name} の通知をキャンセルしました（無人になったため）。`);
     }
 
-    if (newChannel && newChannel.members.size === 1 && (!oldChannel || oldChannel.id !== newChannel.id)) {
-      const settings = await vcNotifyRepo.getVcNotifySettings(newChannel.guild.id);
-      if (!settings || settings.excludedChannels?.includes(newChannel.id)) {
-        return;
-      }
+    if (!newChannel || (oldChannel && oldChannel.id === newChannel.id)) return;
+    if (newChannel.members.size !== 1) return;
 
-      if (this.activeTimers.has(newChannel.id)) {
-        clearTimeout(this.activeTimers.get(newChannel.id)!);
-      }
-
-      console.log(`[VCNotify] #${newChannel.name} でタイマーを開始します（トリガー: ${member.user.tag}）。`);
-      const timer = setTimeout(() => {
-        this.sendNotification(newChannel, member!).catch((err) => {
-          console.error('[VCNotify] 通知送信中にエラーが発生しました:', err);
-        });
-        this.activeTimers.delete(newChannel.id);
-      }, 10000);
-
-      this.activeTimers.set(newChannel.id, timer);
+    const settings = await vcNotifyRepo.getVcNotifySettings(newChannel.guild.id);
+    if (!settings) {
+      console.log(`[VCNotify] 設定なし: guild=${newChannel.guild.id}`);
+      return;
     }
+    if (!settings.notificationChannelId) {
+      console.log(`[VCNotify] 通知チャンネル未設定: guild=${newChannel.guild.id}`);
+      return;
+    }
+    if (settings.excludedChannels?.includes(newChannel.id)) {
+      console.log(`[VCNotify] 除外チャンネル: #${newChannel.name}`);
+      return;
+    }
+
+    if (this.activeTimers.has(newChannel.id)) {
+      clearTimeout(this.activeTimers.get(newChannel.id)!);
+    }
+
+    console.log(`[VCNotify] #${newChannel.name} でタイマーを開始します（トリガー: ${member.user.tag}）。`);
+    const timer = setTimeout(() => {
+      this.sendNotification(newChannel, member!).catch((err) => {
+        console.error('[VCNotify] 通知送信中にエラーが発生しました:', err);
+      });
+      this.activeTimers.delete(newChannel.id);
+    }, 10000);
+
+    this.activeTimers.set(newChannel.id, timer);
   }
 
   private async sendNotification(channel: import('discord.js').VoiceBasedChannel, firstMember: import('discord.js').GuildMember): Promise<void> {
@@ -53,7 +63,7 @@ export class VcNotifyManager {
     }
 
     const settings = await vcNotifyRepo.getVcNotifySettings(channel.guild.id);
-    if (!settings || !settings.notificationChannelId) return;
+    if (!settings?.notificationChannelId) return;
 
     const notificationChannel = await this.client!.channels.fetch(settings.notificationChannelId).catch(() => null);
     if (!notificationChannel || !notificationChannel.isTextBased()) return;

@@ -8,7 +8,6 @@ const STATE_TMP = STATE_FILE + '.tmp';
 const DEFAULT_STATE: AppState = {
   guildSettings: {},
   activeChannels: {},
-  voteReminders: {},
   dailyStats: {},
   welcomeMessages: {},
   workoutTimestamps: {},

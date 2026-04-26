@@ -4,7 +4,6 @@ import { initializeStatusChannels } from '../lib/updateStatusChannels.js';
 import { kikisenManager } from '../lib/kikisenManager.js';
 import { levelManager } from '../lib/levelManager.js';
 import { afkManager } from '../lib/afkManager.js';
-import { voteReminderManager } from '../lib/voteReminderManager.js';
 import { voiceRoleManager } from '../lib/voiceRoleManager.js';
 import { logManager } from '../lib/logManager.js';
 import { dailyStatsManager } from '../lib/dailyStatsManager.js';
@@ -31,8 +30,6 @@ export default {
     console.log('🔝 レベルマネージャーの初期化が完了しました。');
     afkManager.initialize(client);
     console.log('🛌 AFKマネージャーの初期化が完了しました。');
-    voteReminderManager.initialize(client);
-    console.log('📥️ 投票リマインダーマネージャーの初期化が完了しました。');
     voiceRoleManager.initialize(client);
     console.log('🎤 ボイスチャット中ロールマネージャーの初期化が完了しました。');
     logManager.initialize(client);
