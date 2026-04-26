@@ -172,9 +172,6 @@ export class VcLogManager {
     if (isEmpty) {
       this.activeSessions.delete(vcChannelId);
       await this.finalizeSession(vcChannelId, guildId, session.messageId, session.logChannelId, session.startedAt, session.participants);
-    } else {
-      session.participants.delete(memberId);
-      await vcLogRepo.removeParticipant(vcChannelId, memberId);
     }
   }
 
