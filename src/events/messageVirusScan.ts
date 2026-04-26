@@ -93,11 +93,13 @@ export default {
       await scanMsg.edit({ embeds: [embed] }).catch(console.error);
     } else {
       const urlList = scanResults.map(r => `・\`${r.url.slice(0, 80)}\``).join('\n');
+      const deleteAt = Date.now() + 30_000;
+      const deleteTs = Math.floor(deleteAt / 1000);
 
       const embed = new CustomEmbed()
         .setTitle('✅ URLスキャン完了')
         .setColor(0x00FF00)
-        .setDescription(`**対象:**\n${urlList}\n\n脅威は検出されませんでした。`)
+        .setDescription(`**対象:**\n${urlList}\n\n脅威は検出されませんでした。\n<t:${deleteTs}:R>にこのメッセージは削除されます。`)
         .addFields(
           { name: 'スキャン数', value: `${scanResults.length}`, inline: true },
           { name: '結果', value: '安全', inline: true },
@@ -105,6 +107,10 @@ export default {
         .setTimestamp();
 
       await scanMsg.edit({ embeds: [embed] }).catch(console.error);
+
+      setTimeout(() => {
+        scanMsg.delete().catch(() => {});
+      }, 30_000);
     }
   },
 } satisfies BotEvent;

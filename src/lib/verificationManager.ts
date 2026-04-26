@@ -620,26 +620,34 @@ export class VerificationManager {
     this.ndaTokens.delete(application.ndaToken ?? '');
     await this.archiveApplication(application, true);
 
-    if (member) {
+    {
       const welcomeChannelId = process.env.WELCOME_CHANNEL_ID;
       const introChannelId = process.env.INTRO_CHANNEL_ID;
       if (welcomeChannelId) {
         const welcomeChannel = await guild.channels.fetch(welcomeChannelId).catch(() => null) as TextChannel | null;
         if (welcomeChannel) {
+          const fetchedMember = member ?? await guild.members.fetch(application.userId).catch(() => null);
           await guild.members.fetch({ withPresences: false });
           const memberCount = guild.members.cache.filter(m => !m.user.bot).size;
-          const welcomeEmbed = new CustomEmbed(member.user)
+          const user = fetchedMember?.user ?? (await this.client!.users.fetch(application.userId).catch(() => null));
+          const displayName = `<@${application.userId}>`;
+
+          const welcomeEmbed = new CustomEmbed(user ?? undefined)
             .setTitle('🎉 新しいメンバーが参加しました！')
             .setDescription(
-              `${member} さん、ぽん酢鯖へようこそ！\n` +
+              `${displayName} さん、ぽん酢鯖へようこそ！\n` +
               `現在のサーバー人数: **${memberCount}人**` +
               (introChannelId ? `\n<#${introChannelId}> で自己紹介をしてみましょう！` : ''),
             )
-            .setThumbnail(member.user.displayAvatarURL())
+            .setThumbnail(user?.displayAvatarURL() ?? null)
             .setColor(0x00FF00);
 
-          const welcomeMessage = await welcomeChannel.send({ embeds: [welcomeEmbed] });
-          await miscRepo.setWelcomeMessageId(member.id, welcomeMessage.id);
+          try {
+            const welcomeMessage = await welcomeChannel.send({ embeds: [welcomeEmbed] });
+            await miscRepo.setWelcomeMessageId(application.userId, welcomeMessage.id);
+          } catch (e) {
+            console.error('[Verification] ウェルカムメッセージの送信に失敗しました:', e);
+          }
         }
       }
     }
