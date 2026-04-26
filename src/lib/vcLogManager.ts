@@ -127,11 +127,18 @@ export class VcLogManager {
     try {
       const message = await (logChannel as import('discord.js').TextChannel).send({ embeds: [embed] });
       const startedAt = new Date();
+
+      const vcChannel = await this.client!.channels.fetch(vcChannelId).catch(() => null);
+      const allMembers = vcChannel && 'members' in vcChannel
+        ? (vcChannel as import('discord.js').VoiceChannel).members
+        : new Map<string, import('discord.js').GuildMember>();
+      const allParticipantIds = Array.from(allMembers.keys());
+
       this.activeSessions.set(vcChannelId, {
         messageId: message.id,
         logChannelId: settings.notificationChannelId,
         startedAt,
-        participants: new Set([memberId]),
+        participants: new Set(allParticipantIds),
       });
       await vcLogRepo.setVcLogSession(vcChannelId, {
         messageId: message.id,
@@ -139,7 +146,7 @@ export class VcLogManager {
         vcChannelId,
         guildId,
         startedAt: startedAt.getTime(),
-        participants: [memberId],
+        participants: allParticipantIds,
       });
       console.log(`[VCLog] <#${vcChannelId}> のセッションを開始しました。`);
     } catch (error) {
