@@ -26,6 +26,11 @@ export const data = new SlashCommandBuilder()
     sub.setName('bulk')
       .setDescription('【一時用】サーバー全メンバーを一括バイパスしNDA署名へ進めます。')
       .addBooleanOption(opt => opt.setName('confirm').setDescription('trueで実行').setRequired(true)),
+  )
+  .addSubcommand(sub =>
+    sub.setName('tickets-only')
+      .setDescription('【一時用】チケットがないバイパス済みメンバーのチケットだけを再生成します。')
+      .addBooleanOption(opt => opt.setName('confirm').setDescription('trueで実行').setRequired(true)),
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -174,6 +179,80 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       }
 
       embed.setColor(0x00FF00).setTitle(`✅ 一括バイパス完了`).setDescription(desc);
+      await interaction.editReply({ embeds: [embed] });
+      break;
+    }
+
+    case 'tickets-only': {
+      const confirm = interaction.options.getBoolean('confirm', true);
+      if (!confirm) {
+        embed.setColor(0xFF0000).setTitle('❌ キャンセル').setDescription('confirm を true に設定して実行してください。');
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
+      const guild = await interaction.client.guilds.fetch(guildId);
+      await guild.members.fetch();
+
+      const allApps = verificationRepo.getAllApplications(guildId);
+      const appsMissingTicket = allApps.filter(
+        (app) =>
+          (app.status === 'approved' || app.status === 'nda_pending') && !app.ticketChannelId,
+      );
+
+      if (appsMissingTicket.length === 0) {
+        embed.setColor(0xFFAA00).setTitle('⚠️ 対象なし').setDescription('チケット未作成の申請はありません。');
+        await interaction.editReply({ embeds: [embed] });
+        return;
+      }
+
+      const BATCH_SIZE = 5;
+      const BATCH_DELAY_MS = 3000;
+      let success = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < appsMissingTicket.length; i += BATCH_SIZE) {
+        const batch = appsMissingTicket.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (app) => {
+          try {
+            const member = await guild.members.fetch(app.userId).catch(() => null);
+            if (!member) {
+              skipped++;
+              return;
+            }
+
+            const existingChannel = guild.channels.cache.find(ch => ch.name === `ticket-${app.userId}`);
+            if (existingChannel) {
+              app.ticketChannelId = existingChannel.id;
+              await verificationRepo.setApplication(app.id, app);
+              skipped++;
+              return;
+            }
+
+            await verificationManager.createTicketChannel(
+              verificationRepo.getApplication(app.id)!,
+            );
+            success++;
+          } catch (e) {
+            skipped++;
+            errors.push(`<@${app.userId}>: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }));
+
+        if (i + BATCH_SIZE < appsMissingTicket.length) {
+          await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+        }
+      }
+
+      let desc = `**対象**: ${appsMissingTicket.length}件\n**成功**: ${success}件\n**スキップ**: ${skipped}件`;
+      if (errors.length > 0) {
+        desc += `\n\n**エラー**:\n${errors.slice(0, 10).join('\n')}`;
+      }
+
+      embed.setColor(0x00FF00).setTitle(`✅ チケット再生成完了`).setDescription(desc);
       await interaction.editReply({ embeds: [embed] });
       break;
     }
