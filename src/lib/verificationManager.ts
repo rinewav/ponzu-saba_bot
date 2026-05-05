@@ -317,8 +317,9 @@ export class VerificationManager {
     }
     application.formData = formData;
 
-    application.displayName = formData['表示名'] || formData[fields[0]?.label] || interaction.user.username;
-    application.activity = formData['活動内容（何をしている人か）'] || formData[fields[1]?.label] || '';
+    application.displayName = formData['表示名'] || interaction.user.username;
+    const fieldValues = Object.values(formData);
+    application.activity = formData['活動内容（何をしている人か）'] || fieldValues[1] || '';
     application.portfolio = formData['ポートフォリオのリンク（任意）'] || undefined;
     application.onlineHours = formData['おおよそのオンライン時間'] || undefined;
     application.note = formData['一言メッセージ（任意）'] || undefined;

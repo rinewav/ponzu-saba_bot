@@ -83,14 +83,20 @@ export default {
       const urlList = dangerousResults.map(r => {
         return `・\`${r.url.slice(0, 80)}\`\n  悪意: **${r.malicious}** / 疑わしい: **${r.suspicious}** / 無害: ${r.harmless}`;
       }).join('\n');
+      const deleteAt = Date.now() + 30_000;
+      const deleteTs = Math.floor(deleteAt / 1000);
 
       const embed = new CustomEmbed()
         .setTitle('⚠️ 危険なURLが検出されました')
         .setColor(0xFF0000)
-        .setDescription(`**送信者:** ${message.author}\n\n${urlList}`)
+        .setDescription(`**送信者:** ${message.author}\n\n${urlList}\n\n<t:${deleteTs}:R>にこのメッセージは削除されます。`)
         .setTimestamp();
 
       await scanMsg.edit({ embeds: [embed] }).catch(console.error);
+
+      setTimeout(() => {
+        scanMsg.delete().catch(() => {});
+      }, 30_000);
     } else {
       const urlList = scanResults.map(r => `・\`${r.url.slice(0, 80)}\``).join('\n');
       const deleteAt = Date.now() + 30_000;
