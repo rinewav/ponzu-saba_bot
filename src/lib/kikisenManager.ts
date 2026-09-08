@@ -140,7 +140,8 @@ export class KikisenManager {
       .setColor(0x00FF00)
       .setDescription(`**${member}** が参加しました。`);
 
-    await tc.send({ content: `${member} 聞き専チャットを作成しました🍎`, embeds: [embed] });
+    const fruit = Math.random() < 0.1 ? '🍋' : '🍎';
+    await tc.send({ content: `${member} 聞き専チャットを作成しました${fruit}`, embeds: [embed] });
     console.log(`[Kikisen] チャンネルを作成しました: ${channelName} (VC: ${vc.name})`);
   }
 
