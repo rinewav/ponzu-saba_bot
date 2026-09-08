@@ -68,7 +68,8 @@ export class KikisenManager {
           .setDescription(`**${member}**${botSuffix} が参加しました。`);
 
         if (!isBot) {
-          await (tc as TextChannel).send({ content: `${member} 聞き専チャットはこちらです🍎`, embeds: [joinEmbed] });
+          const fruit = Math.random() < 0.1 ? '🍋' : '🍎';
+          await (tc as TextChannel).send({ content: `${member} 聞き専チャットはこちらです${fruit}`, embeds: [joinEmbed] });
         } else {
           await (tc as TextChannel).send({ embeds: [joinEmbed] });
         }
