@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import * as fontkit from 'fontkit';
 import { existsSync } from 'node:fs';
 import { platform } from 'node:os';
 
@@ -21,30 +22,58 @@ export const NDA_TEXT = `【秘密保持契約（NDA）】
 
 interface CjkFontConfig {
   path: string;
-  family: string;
+  /** .ttc（フォントコレクション）の場合のみ必要。pdfkit は postscriptName の完全一致で解決する */
+  family?: string;
 }
 
-const CJK_FONTS: CjkFontConfig[] =
+const CJK_FONT_PATHS: string[] =
   platform() === 'win32'
     ? [
-        { path: 'C:\\Windows\\Fonts\\yugothic.ttc', family: 'Yu Gothic' },
-        { path: 'C:\\Windows\\Fonts\\meiryo.ttc', family: 'Meiryo' },
-        { path: 'C:\\Windows\\Fonts\\msgothic.ttc', family: 'MS Gothic' },
+        'C:\\Windows\\Fonts\\YuGothR.ttc',
+        'C:\\Windows\\Fonts\\YuGothM.ttc',
+        'C:\\Windows\\Fonts\\meiryo.ttc',
+        'C:\\Windows\\Fonts\\msgothic.ttc',
       ]
     : platform() === 'darwin'
       ? [
-          { path: '/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc', family: 'HiraginoSans-W3' },
-          { path: '/Library/Fonts/Arial Unicode.ttf', family: 'Arial Unicode MS' },
+          '/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc',
+          '/System/Library/Fonts/Hiragino Sans GB.ttc',
+          '/Library/Fonts/Arial Unicode.ttf',
         ]
       : [
-          { path: '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', family: 'NotoSansCJKsc-Regular' },
-          { path: '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc', family: 'NotoSansCJKsc-Regular' },
+          '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+          '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+          '/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf',
+          '/usr/share/fonts/opentype/noto/NotoSansCJK-VF.otf.ttc',
+          '/usr/share/fonts/truetype/noto/NotoSansCJKjp-Regular.otf',
         ];
 
+let cachedCjkFont: CjkFontConfig | null = null;
+
 function findCjkFont(): CjkFontConfig | null {
-  for (const font of CJK_FONTS) {
-    if (existsSync(font.path)) return font;
+  if (cachedCjkFont) return cachedCjkFont;
+
+  for (const path of CJK_FONT_PATHS) {
+    if (!existsSync(path)) continue;
+
+    try {
+      const opened = fontkit.openSync(path);
+      // .ttc は複数フォントを含むコレクション。先頭フォントの postscriptName を family として渡す
+      if ('fonts' in opened && Array.isArray(opened.fonts)) {
+        const family = opened.fonts[0]?.postscriptName;
+        if (!family) continue;
+        cachedCjkFont = { path, family };
+      } else {
+        // 単一フォントファイルは family 指定不要
+        cachedCjkFont = { path };
+      }
+      return cachedCjkFont;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn(`[NDA] フォントの読み込みに失敗したため次の候補を試します (${path}): ${msg}`);
+    }
   }
+
   return null;
 }
 
@@ -62,7 +91,7 @@ export async function generateNdaPdf(data: NdaPdfData): Promise<Buffer> {
   const font = findCjkFont();
   if (!font) {
     throw new Error(
-      `[NDA] CJKフォントが見つかりません。システムに日本語フォントをインストールしてください。検索パス: ${CJK_FONTS.map((f) => f.path).join(', ')}`,
+      `[NDA] CJKフォントが見つかりません。システムに日本語フォントをインストールしてください。検索パス: ${CJK_FONT_PATHS.join(', ')}`,
     );
   }
 
@@ -84,7 +113,11 @@ export async function generateNdaPdf(data: NdaPdfData): Promise<Buffer> {
     doc.on('error', reject);
 
     try {
-      doc.registerFont('CJK', font.path, font.family);
+      if (font.family) {
+        doc.registerFont('CJK', font.path, font.family);
+      } else {
+        doc.registerFont('CJK', font.path);
+      }
     } catch (err) {
       reject(new Error(`[NDA] フォント登録失敗 (${font.path}): ${err}`));
       return;

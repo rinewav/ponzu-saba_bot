@@ -19,6 +19,7 @@
     "discord.js": "^14.26.3",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
+    "fontkit": "^2.0.4",
     "node-cron": "^4.2.1",
     "pdfkit": "^0.18.0",
     "valid-url": "^1.0.9"

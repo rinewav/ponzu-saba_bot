@@ -1,20 +1,21 @@
 import type { Client, GuildMember, VoiceState } from 'discord.js';
 import cron from 'node-cron';
 import { levelRepo } from './repositories/index.js';
-import { CustomEmbed } from './customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from './customEmbed.js';
 
 export class LevelManager {
   private client: Client | null = null;
   private voiceIntervals = new Map<string, NodeJS.Timeout>();
   private loginTimers = new Map<string, NodeJS.Timeout>();
+  /** `${guildId}:${userId}` → 直近にメッセージXPを付与した時刻(ms) */
+  private lastMessageXpAt = new Map<string, number>();
 
   async initialize(client: Client): Promise<void> {
     this.client = client;
-    await levelRepo.loadLevelData();
     this.restoreVoiceXP();
 
     cron.schedule('5 0 * * *', () => {
-      this.checkCrossDayLogins();
+      void this.checkCrossDayLogins().catch(err => console.error('[Level] 日付跨ぎログインチェックエラー:', err));
     }, { timezone: 'Asia/Tokyo' });
   }
 
@@ -48,7 +49,7 @@ export class LevelManager {
           const role = await member.guild.roles.fetch(roleId);
           if (role) await member.roles.add(role).catch(console.error);
         } catch (err) {
-          console.error(`[LevelSystem] ロール付与エラー (RoleID: ${roleId}):`, err);
+          console.error(`[Level] ロール付与エラー (RoleID: ${roleId}):`, err);
         }
       }
     }
@@ -64,7 +65,7 @@ export class LevelManager {
       const embed = new CustomEmbed(member.user)
         .setTitle('🎉 レベルアップ！')
         .setDescription(`${member} が **レベル ${record.level}** に到達しました！`)
-        .setColor('#f50004')
+        .setColor(EMBED_COLORS.GOLD)
         .setThumbnail(member.user.displayAvatarURL());
 
       const channel = await member.guild.channels.fetch(levelUpChannelId).catch(() => null);
@@ -84,6 +85,16 @@ export class LevelManager {
     if (excluded.includes(message.channel.id) || (message.channel.isTextBased() && 'parentId' in message.channel && message.channel.parentId && excluded.includes(message.channel.parentId))) return;
 
     if (message.member?.voice?.channel) return;
+
+    // 連投によるXP稼ぎを防ぐためのクールダウン（0秒指定で無効）
+    const cooldownMs = (levelSettings?.xpCooldownSeconds ?? 60) * 1000;
+    if (cooldownMs > 0) {
+      const key = `${message.guild!.id}:${message.author.id}`;
+      const now = Date.now();
+      const last = this.lastMessageXpAt.get(key);
+      if (last !== undefined && now - last < cooldownMs) return;
+      this.lastMessageXpAt.set(key, now);
+    }
 
     await this.awardXp(message.member, levelSettings?.xpPerMessage || 30);
   }
@@ -131,7 +142,8 @@ export class LevelManager {
         }
         const voiceState = currentMember.voice;
         if (voiceState.deaf && !voiceState.streaming && !voiceState.selfVideo) return;
-        this.awardXp(currentMember, (levelSettings?.xpPerSecondVoice || 0.15) * 10);
+        void this.awardXp(currentMember, (levelSettings?.xpPerSecondVoice || 0.15) * 10)
+          .catch(err => console.error('[Level] VC XP付与エラー:', err));
       }, 10000);
       this.voiceIntervals.set(member.id, interval);
     };
@@ -151,7 +163,8 @@ export class LevelManager {
     for (const guild of this.client.guilds.cache.values()) {
       for (const member of guild.members.cache.values()) {
         if (member.voice.channel) {
-          this.handleVoiceState(null, member.voice);
+          void this.handleVoiceState(null, member.voice)
+            .catch(err => console.error('[Level] VC状態の復元エラー:', err));
         }
       }
     }
@@ -166,7 +179,8 @@ export class LevelManager {
 
     const timer = setTimeout(() => {
       if (member.voice.channel) {
-        this.grantLoginBonus(member);
+        void this.grantLoginBonus(member)
+          .catch(err => console.error('[Level] ログインボーナス付与エラー:', err));
       }
       this.loginTimers.delete(member.id);
     }, 5 * 60 * 1000);
@@ -175,7 +189,7 @@ export class LevelManager {
   }
 
   async checkCrossDayLogins(): Promise<void> {
-    console.log('[LevelSystem] 日付をまたいだログインボーナスのチェックを開始します...');
+    console.log('[Level] 日付をまたいだログインボーナスのチェックを開始します...');
     if (!this.client) return;
 
     for (const guild of this.client.guilds.cache.values()) {
@@ -197,8 +211,8 @@ export class LevelManager {
     const userData = levelRepo.getUserData(member.guild.id, member.id);
     const now = new Date();
 
-    const lastLoginDate = userData.lastLogin ? new Date(userData.lastLogin).toLocaleDateString('ja-JP') : null;
-    const todayDate = now.toLocaleDateString('ja-JP');
+    const lastLoginDate = userData.lastLogin ? new Date(userData.lastLogin).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) : null;
+    const todayDate = now.toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' });
     if (lastLoginDate === todayDate) return;
 
     if (this.loginTimers.has(member.id)) {
@@ -211,7 +225,7 @@ export class LevelManager {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
 
-    if (userData.lastLogin && new Date(userData.lastLogin).toLocaleDateString('ja-JP') === yesterday.toLocaleDateString('ja-JP')) {
+    if (userData.lastLogin && new Date(userData.lastLogin).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) === yesterday.toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })) {
       userData.loginStreak += 1;
     } else {
       userData.loginStreak = 1;
@@ -229,7 +243,7 @@ export class LevelManager {
 
     await this.awardXp(member, totalXP);
 
-    console.log(`[LevelSystem] ${member.user.tag} にログインボーナスを付与しました。`);
+    console.log(`[Level] ${member.user.tag} にログインボーナスを付与しました。`);
 
     const notifyChannelId = levelSettings?.levelUpChannelId;
     if (!notifyChannelId) return;
@@ -242,7 +256,7 @@ export class LevelManager {
 
       const embed = new CustomEmbed(member.user)
         .setTitle('🎉 ログインボーナス！')
-        .setColor(0xFFD700)
+        .setColor(EMBED_COLORS.GOLD)
         .setDescription(`${member} がログインしました！`)
         .setThumbnail(member.user.displayAvatarURL())
         .addFields(
@@ -273,13 +287,13 @@ export class LevelManager {
             appliedCount++;
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (err) {
-            console.error(`[LevelSystem] ${member.user.tag} への遡及ロール付与に失敗 (RoleID: ${roleId}):`, err);
+            console.error(`[Level] ${member.user.tag} への遡及ロール付与に失敗 (RoleID: ${roleId}):`, err);
           }
         }
       }
     }
 
-    console.log(`[LevelSystem] ${guild.name} でレベル ${level} ロール (ID: ${roleId}) を ${appliedCount} 人に遡及適用しました。`);
+    console.log(`[Level] ${guild.name} でレベル ${level} ロール (ID: ${roleId}) を ${appliedCount} 人に遡及適用しました。`);
     return appliedCount;
   }
 }

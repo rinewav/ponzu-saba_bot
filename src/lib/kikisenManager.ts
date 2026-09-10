@@ -10,7 +10,7 @@ import {
   type TextChannel,
 } from 'discord.js';
 import { kikisenRepo } from './repositories/index.js';
-import { CustomEmbed } from './customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from './customEmbed.js';
 
 const processingVCs = new Set<string>();
 
@@ -23,7 +23,9 @@ export class KikisenManager {
     console.log('[Kikisen] 状態をロードしました。');
     await this.checkConsistency();
     this.isFirstConsistencyCheck = false;
-    setInterval(() => this.checkConsistency(), 300000);
+    setInterval(() => {
+      void this.checkConsistency().catch(err => console.error('[Kikisen] 整合性チェックエラー:', err));
+    }, 300000);
   }
 
   async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): Promise<void> {
@@ -64,7 +66,7 @@ export class KikisenManager {
         const isBot = member.user.bot;
         const botSuffix = isBot ? ' (ボット🤖)' : '';
         const joinEmbed = new CustomEmbed(member.user)
-          .setColor(0x00FF00)
+          .setColor(EMBED_COLORS.SUCCESS)
           .setDescription(`**${member}**${botSuffix} が参加しました。`);
 
         if (!isBot) {
@@ -107,7 +109,7 @@ export class KikisenManager {
           descriptionText = `**${member}**${botSuffix} が退出しました。`;
         }
         const leaveEmbed = new CustomEmbed(member.user)
-          .setColor(0xFFA500)
+          .setColor(EMBED_COLORS.WARN)
           .setDescription(descriptionText);
         await (tc as TextChannel).send({ embeds: [leaveEmbed] });
       }
@@ -131,13 +133,13 @@ export class KikisenManager {
       type: ChannelType.GuildText,
       parent: vc.parent,
       permissionOverwrites,
-      topic: `ボイスチャット ${vc} 用の聞き専チャットです。VCが空になると自動で削除されます。`,
+      topic: `VC ${vc} 用の聞き専チャットです。VCが空になると自動で削除されます。`,
     });
 
     await kikisenRepo.createActiveChannel(guild.id, vc.id, tc.id);
 
     const embed = new CustomEmbed(member.user)
-      .setColor(0x00FF00)
+      .setColor(EMBED_COLORS.SUCCESS)
       .setDescription(`**${member}** が参加しました。`);
 
     const fruit = Math.random() < 0.1 ? '🍋' : '🍎';
@@ -155,7 +157,7 @@ export class KikisenManager {
       if (logChannel && logChannel.isTextBased()) {
         const logData = kikisenRepo.getLog(tcId);
         if (logData && logData.length > 0) {
-          let logContent = `ボイスチャット <#${vcId}> (ID: ${vcId}) のログです。\n\n`;
+          let logContent = `VC <#${vcId}> (ID: ${vcId}) のログです。\n\n`;
           logContent += logData.map(log => {
             const time = new Date(log.timestamp).toLocaleString('ja-JP');
             let entry = `${log.deleted ? '【削除済み】 ' : ''}[${time}] ${log.author}: ${log.content}`;
@@ -170,7 +172,7 @@ export class KikisenManager {
 
           const attachment = new AttachmentBuilder(Buffer.from(logContent, 'utf-8'), { name: `kikisen-log-${vcId}-${Date.now()}.txt` });
           const embed = new CustomEmbed()
-            .setColor(0x0000FF)
+            .setColor(EMBED_COLORS.INFO)
             .setTitle('📝 聞き専チャット ログ')
             .setDescription(`VC <#${vcId}> のチャットログを保存しました。`);
           await (logChannel as TextChannel).send({ embeds: [embed], files: [attachment] });
@@ -209,42 +211,46 @@ export class KikisenManager {
     const allActiveChannels = kikisenRepo.getAllActiveChannels();
 
     const restartEmbed = new CustomEmbed()
-      .setColor(0xFFA500)
+      .setColor(EMBED_COLORS.WARN)
       .setDescription('⚙️ ボットが再起動しました。');
 
     for (const tcId in allActiveChannels) {
-      const { guildId, voiceChannelId } = allActiveChannels[tcId];
-      const guild = this.client.guilds.cache.get(guildId);
-      if (!guild) {
-        await kikisenRepo.deleteActiveChannel(tcId);
-        continue;
-      }
+      try {
+        const { guildId, voiceChannelId } = allActiveChannels[tcId];
+        const guild = this.client.guilds.cache.get(guildId);
+        if (!guild) {
+          await kikisenRepo.deleteActiveChannel(tcId);
+          continue;
+        }
 
-      const tc = await guild.channels.fetch(tcId).catch(() => null);
-      const vc = await guild.channels.fetch(voiceChannelId).catch(() => null);
+        const tc = await guild.channels.fetch(tcId).catch(() => null);
+        const vc = await guild.channels.fetch(voiceChannelId).catch(() => null);
 
-      if (!tc || !vc || vc.type !== ChannelType.GuildVoice) {
-        const active = kikisenRepo.getActiveChannelByText(tcId);
-        if (active) {
-          await this.archiveAndDeleteKikisenChannel(guild, voiceChannelId, tcId);
+        if (!tc || !vc || vc.type !== ChannelType.GuildVoice) {
+          const active = kikisenRepo.getActiveChannelByText(tcId);
+          if (active) {
+            await this.archiveAndDeleteKikisenChannel(guild, voiceChannelId, tcId);
+          }
+          continue;
         }
-        continue;
-      }
 
-      const voiceChannel = vc as VoiceChannel;
-      const membersInVC = voiceChannel.members.filter(m => !m.user.bot);
-      if (membersInVC.size === 0) {
-        const active = kikisenRepo.getActiveChannelByText(tc.id);
-        if (active) {
-          await this.archiveAndDeleteKikisenChannel(guild, vc.id, tc.id);
+        const voiceChannel = vc as VoiceChannel;
+        const membersInVC = voiceChannel.members.filter(m => !m.user.bot);
+        if (membersInVC.size === 0) {
+          const active = kikisenRepo.getActiveChannelByText(tc.id);
+          if (active) {
+            await this.archiveAndDeleteKikisenChannel(guild, vc.id, tc.id);
+          }
+        } else {
+          if ('permissionOverwrites' in tc) {
+            await this.updatePermissions(tc as TextChannel, voiceChannel);
+          }
+          if (this.isFirstConsistencyCheck && tc.isTextBased()) {
+            await (tc as TextChannel).send({ embeds: [restartEmbed] }).catch(console.error);
+          }
         }
-      } else {
-        if ('permissionOverwrites' in tc) {
-          await this.updatePermissions(tc as TextChannel, voiceChannel);
-        }
-        if (this.isFirstConsistencyCheck && tc.isTextBased()) {
-          await (tc as TextChannel).send({ embeds: [restartEmbed] }).catch(console.error);
-        }
+      } catch (error) {
+        console.error(`[Kikisen] 整合性チェック中にエラーが発生しました (TC: ${tcId}):`, error);
       }
     }
 

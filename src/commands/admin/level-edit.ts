@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { BotCommand } from '../../types/index.js';
 import { levelManager } from '../../lib/levelManager.js';
-import { CustomEmbed } from '../../lib/customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from '../../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
   .setName('level-edit')
@@ -21,7 +21,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const highestStreak = interaction.options.getInteger('highest-streak');
 
   if (level === null && xp === null && streak === null && highestStreak === null) {
-    await interaction.reply({ content: '❌ 少なくとも1つのオプションを指定してください。', ephemeral: true });
+    await interaction.reply({ content: '❌ 少なくとも1つのオプションを指定してください。', flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -34,7 +34,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   await levelManager.setUserData(interaction.guild!.id, targetUser.id, update);
 
   const embed = new CustomEmbed(interaction.user)
-    .setColor(0x00FF00)
+    .setColor(EMBED_COLORS.SUCCESS)
     .setTitle('✅ レベルデータ更新')
     .setDescription(`${targetUser} のデータを更新しました。`)
     .addFields(
@@ -45,7 +45,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       })),
     );
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 const command: BotCommand = { data, execute };

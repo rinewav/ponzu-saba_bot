@@ -42,6 +42,9 @@ export class CrossPostManager {
     if (originGuilds.size === 0) return;
 
     for (const [guildId, assets] of originGuilds.entries()) {
+      // 他サーバーでの使用のみ通知するため、同一サーバー内での使用はスキップ
+      if (guildId === message.guild.id) continue;
+
       const notifyChannelId = targets[guildId];
       if (!notifyChannelId) continue;
 
@@ -51,8 +54,8 @@ export class CrossPostManager {
         if (!notifyChannel || !notifyChannel.isTextBased()) continue;
 
         const embed = new CustomEmbed(message.author)
-          .setTitle('🎨 スタンプ/絵文字 利用通知')
-          .setDescription(`サーバー **${message.guild.name}** でスタンプ/絵文字が使用されました。`)
+          .setTitle('🎨 絵文字/スタンプ 利用通知')
+          .setDescription(`サーバー **${message.guild.name}** で絵文字/スタンプが使用されました。`)
           .addFields(
             { name: '使用者', value: `${message.author} (${message.author.tag})`, inline: true },
             { name: '使用場所', value: `${message.channel}`, inline: true },

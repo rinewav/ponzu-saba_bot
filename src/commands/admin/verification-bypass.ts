@@ -1,9 +1,9 @@
-import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import { randomUUID } from 'node:crypto';
 import type { BotCommand } from '../../types/index.js';
 import { verificationRepo } from '../../lib/repositories/index.js';
 import { verificationManager } from '../../lib/verificationManager.js';
-import { CustomEmbed } from '../../lib/customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from '../../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
   .setName('verification-bypass')
@@ -45,7 +45,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
       const existing = verificationRepo.getActiveApplicationByUser(guildId, user.id);
       if (existing) {
-        embed.setColor(0xFFAA00).setTitle('⚠️ 設定完了').setDescription(
+        embed.setColor(EMBED_COLORS.WARN).setTitle('⚠️ 設定完了').setDescription(
           `${user} をバイパスリストに追加しました。\nこのユーザーにはすでにアクティブな申請が存在するため、チケットは作成されませんでした。`,
         );
       } else {
@@ -66,51 +66,51 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           verificationRepo.getApplication(appId)!,
         );
 
-        embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(
+        embed.setColor(EMBED_COLORS.SUCCESS).setTitle('✅ 設定完了').setDescription(
           `${user} をバイパスリストに追加し、NDA署名用チケットを作成しました。\n参加時に自動で認証済みロールが付与されます。`,
         );
       }
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       break;
     }
 
     case 'remove': {
       const user = interaction.options.getUser('user', true);
       await verificationRepo.removeBypass(guildId, user.id);
-      embed.setColor(0x00FF00).setTitle('✅ 設定完了').setDescription(`${user} をバイパスリストから削除しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      embed.setColor(EMBED_COLORS.SUCCESS).setTitle('✅ 設定完了').setDescription(`${user} をバイパスリストから削除しました。`);
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       break;
     }
 
     case 'list': {
       const bypassList = verificationRepo.getBypassList(guildId);
       if (bypassList.length === 0) {
-        embed.setColor(0xFFAA00).setTitle('📋 バイパスリスト').setDescription('バイパスリストは空です。');
+        embed.setColor(EMBED_COLORS.WARN).setTitle('📋 バイパスリスト').setDescription('バイパスリストは空です。');
       } else {
-        embed.setColor(0xFFAA00).setTitle(`📋 バイパスリスト（${bypassList.length}人）`)
+        embed.setColor(EMBED_COLORS.WARN).setTitle(`📋 バイパスリスト（${bypassList.length}人）`)
           .setDescription(bypassList.map(id => `<@${id}>`).join('\n'));
       }
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       break;
     }
 
     case 'bulk': {
       const confirm = interaction.options.getBoolean('confirm', true);
       if (!confirm) {
-        embed.setColor(0xFF0000).setTitle('❌ キャンセル').setDescription('confirm を true に設定して実行してください。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        embed.setColor(EMBED_COLORS.ERROR).setTitle('❌ キャンセル').setDescription('confirm を true に設定して実行してください。');
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         return;
       }
 
       const settings = await verificationRepo.getVerificationSettings(guildId);
       if (!settings?.enabled) {
-        embed.setColor(0xFF0000).setTitle('❌ エラー').setDescription('参加認証が有効ではありません。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        embed.setColor(EMBED_COLORS.ERROR).setTitle('❌ エラー').setDescription('参加認証が有効ではありません。');
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const guild = await interaction.client.guilds.fetch(guildId);
       await guild.members.fetch();
@@ -128,7 +128,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       });
 
       if (targets.length === 0) {
-        embed.setColor(0xFFAA00).setTitle('⚠️ 対象なし').setDescription('バイパス対象のメンバーがいません。');
+        embed.setColor(EMBED_COLORS.WARN).setTitle('⚠️ 対象なし').setDescription('バイパス対象のメンバーがいません。');
         await interaction.editReply({ embeds: [embed] });
         return;
       }
@@ -178,7 +178,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         desc += `\n\n**エラー**:\n${errors.slice(0, 10).join('\n')}`;
       }
 
-      embed.setColor(0x00FF00).setTitle(`✅ 一括バイパス完了`).setDescription(desc);
+      embed.setColor(EMBED_COLORS.SUCCESS).setTitle(`✅ 一括バイパス完了`).setDescription(desc);
       await interaction.editReply({ embeds: [embed] });
       break;
     }
@@ -186,12 +186,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'tickets-only': {
       const confirm = interaction.options.getBoolean('confirm', true);
       if (!confirm) {
-        embed.setColor(0xFF0000).setTitle('❌ キャンセル').setDescription('confirm を true に設定して実行してください。');
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        embed.setColor(EMBED_COLORS.ERROR).setTitle('❌ キャンセル').setDescription('confirm を true に設定して実行してください。');
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const guild = await interaction.client.guilds.fetch(guildId);
       await guild.members.fetch();
@@ -203,7 +203,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       );
 
       if (appsMissingTicket.length === 0) {
-        embed.setColor(0xFFAA00).setTitle('⚠️ 対象なし').setDescription('チケット未作成の申請はありません。');
+        embed.setColor(EMBED_COLORS.WARN).setTitle('⚠️ 対象なし').setDescription('チケット未作成の申請はありません。');
         await interaction.editReply({ embeds: [embed] });
         return;
       }
@@ -252,7 +252,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         desc += `\n\n**エラー**:\n${errors.slice(0, 10).join('\n')}`;
       }
 
-      embed.setColor(0x00FF00).setTitle(`✅ チケット再生成完了`).setDescription(desc);
+      embed.setColor(EMBED_COLORS.SUCCESS).setTitle(`✅ チケット再生成完了`).setDescription(desc);
       await interaction.editReply({ embeds: [embed] });
       break;
     }

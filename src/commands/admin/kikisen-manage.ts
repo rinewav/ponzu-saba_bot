@@ -1,8 +1,8 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { BotCommand } from '../../types/index.js';
 import { kikisenRepo } from '../../lib/repositories/index.js';
 import { kikisenManager } from '../../lib/kikisenManager.js';
-import { CustomEmbed } from '../../lib/customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from '../../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
   .setName('kikisen-manage')
@@ -39,21 +39,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const voiceChannel = interaction.options.getChannel('voice', true);
       const textChannel = interaction.options.getChannel('text', true);
       await kikisenRepo.createActiveChannel(interaction.guild!.id, voiceChannel.id, textChannel.id);
-      embed.setColor(0x00FF00).setTitle('✅ リンク完了').setDescription(`ボイスチャンネル ${voiceChannel} をテキストチャンネル ${textChannel} にリンクしました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      embed.setColor(EMBED_COLORS.SUCCESS).setTitle('✅ リンク完了').setDescription(`ボイスチャンネル ${voiceChannel} をテキストチャンネル ${textChannel} にリンクしました。`);
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       break;
     }
     case 'unlink': {
       const textChannel = interaction.options.getChannel('text', true);
       await kikisenRepo.deleteActiveChannel(textChannel.id);
-      embed.setColor(0xFF0000).setTitle('🔓 リンク解除').setDescription(`テキストチャンネル ${textChannel} の聞き専リンクを解除しました。`);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      embed.setColor(EMBED_COLORS.ERROR).setTitle('🔓 リンク解除').setDescription(`テキストチャンネル ${textChannel} の聞き専リンクを解除しました。`);
+      await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       break;
     }
     case 'sync': {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       await kikisenManager.checkConsistency();
-      embed.setColor(0x00FF00).setTitle('🔄 同期完了').setDescription('聞き専チャットの整合性チェックが完了しました。');
+      embed.setColor(EMBED_COLORS.SUCCESS).setTitle('🔄 同期完了').setDescription('聞き専チャットの整合性チェックが完了しました。');
       await interaction.editReply({ embeds: [embed] });
       break;
     }

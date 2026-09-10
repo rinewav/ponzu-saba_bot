@@ -1,4 +1,4 @@
-import { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, type Interaction } from 'discord.js';
+import { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, MessageFlags, type Interaction } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { rolePanelManager } from '../lib/rolePanelManager.js';
 import { verificationManager } from '../lib/verificationManager.js';
@@ -23,9 +23,9 @@ export default {
         console.error(`[Interaction] コマンド "${interaction.commandName}" の実行中にエラーが発生しました:`, error);
         const errorMsg = 'コマンドの実行中にエラーが発生しました。';
         if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({ content: errorMsg, ephemeral: true }).catch(() => {});
+          await interaction.followUp({ content: errorMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
         } else {
-          await interaction.reply({ content: errorMsg, ephemeral: true }).catch(() => {});
+          await interaction.reply({ content: errorMsg, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
       }
       return;
@@ -53,9 +53,14 @@ export default {
         const guildId = interaction.guildId;
         if (!guildId) return;
 
+        if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+          await interaction.reply({ content: 'この操作を行う権限がありません。', flags: MessageFlags.Ephemeral }).catch(() => {});
+          return;
+        }
+
         const job = await cleanupRepo.getCleanupJob(guildId);
         if (!job) {
-          await interaction.reply({ content: 'クリーンアップジョブが見つかりません。', ephemeral: true }).catch(() => {});
+          await interaction.reply({ content: 'クリーンアップジョブが見つかりません。', flags: MessageFlags.Ephemeral }).catch(() => {});
           return;
         }
 

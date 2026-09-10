@@ -45,7 +45,7 @@ export class AfkManager {
     this.checkInterval = setInterval(() => void this.checkAfkUsers().catch(console.error), 60000);
   }
 
-  private trackNewUser(member: GuildMember): void {
+  private trackNewUser(member: GuildMember, voiceChannelId: string = member.voice.channelId!): void {
     const userId = member.id;
     const existing = this.trackedUsers.get(userId);
     if (existing?.isPreAfk) {
@@ -54,7 +54,7 @@ export class AfkManager {
 
     this.trackedUsers.set(userId, {
       guildId: member.guild.id,
-      voiceChannelId: member.voice.channelId!,
+      voiceChannelId,
       joinedAt: Date.now(),
       lastActivityAt: Date.now(),
       isPreAfk: false,
@@ -68,46 +68,16 @@ export class AfkManager {
     return this.trackedUsers.get(userId)?.isPreAfk === true;
   }
 
-  async updateUser(voiceState: VoiceState, isActivity = false): Promise<void> {
-    const userId = voiceState.member!.id;
-    const userData = this.trackedUsers.get(userId);
-
-    if (!voiceState.channel || isActivity) {
-      if (userData?.isPreAfk) {
-        const member = await voiceState.guild.members.fetch(userId).catch(() => null);
-        if (member) {
-          await this.restoreNickname(member, userData.originalNickname);
-        }
-      }
-
-      if (!voiceState.channel) {
-        this.trackedUsers.delete(userId);
-      } else if (userData) {
-        userData.lastActivityAt = Date.now();
-        userData.notified = false;
-        userData.warned = false;
-        if (userData.isPreAfk) {
-          userData.isPreAfk = false;
-          userData.originalNickname = null;
-        }
-        this.trackedUsers.set(userId, userData);
-      }
-      return;
-    }
-
-    this.trackNewUser(voiceState.member!);
-  }
-
   private async restoreNickname(member: GuildMember, savedNickname: string | null): Promise<void> {
     if (!member.manageable) return;
     const currentNickname = member.nickname ?? member.user.displayName;
     if (currentNickname.startsWith(PRE_AFK_PREFIX)) {
       try {
         await member.setNickname(savedNickname, 'AFK状態を解除');
-        console.log(`[AFKManager] ${member.user.tag} のニックネームを復元しました。`);
+        console.log(`[AFK] ${member.user.tag} のニックネームを復元しました。`);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
-        console.error(`[AFKManager] ${member.user.tag} のニックネーム復元に失敗:`, msg);
+        console.error(`[AFK] ${member.user.tag} のニックネーム復元に失敗:`, msg);
       }
     }
   }
@@ -133,8 +103,30 @@ export class AfkManager {
   }
 
   async handleVoiceStateUpdate(oldState: VoiceState, newState: VoiceState): Promise<void> {
-    const member = newState.member;
+    const member = newState.member ?? oldState.member;
     if (!member) return;
+    if (member.user.bot) return;
+
+    const joined = !oldState.channel && newState.channel;
+    const moved = oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id;
+
+    // VC参加・チャンネル移動はどちらも「アクティブ」とみなし、新しいチャンネルで追跡をやり直す
+    if (joined || moved) {
+      this.trackNewUser(member, newState.channel!.id);
+      return;
+    }
+
+    // VC退出時は追跡を解除する（前兆AFKならニックネームを戻す）
+    if (oldState.channel && !newState.channel) {
+      const leavingData = this.trackedUsers.get(member.id);
+      if (leavingData?.isPreAfk) {
+        const fetched = await member.guild.members.fetch(member.id).catch(() => null);
+        await this.restoreNickname(fetched ?? member, leavingData.originalNickname);
+      }
+      this.trackedUsers.delete(member.id);
+      return;
+    }
+
     const userData = this.trackedUsers.get(member.id);
     if (!userData) return;
 
@@ -142,16 +134,19 @@ export class AfkManager {
       (oldState.selfMute && !newState.selfMute) ||
       (oldState.serverMute && !newState.serverMute) ||
       (!oldState.streaming && newState.streaming) ||
-      (!oldState.selfVideo && newState.selfVideo) ||
-      (oldState.channel && !newState.channel) ||
-      (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id);
+      (!oldState.selfVideo && newState.selfVideo);
 
     if (becameActive) {
       await this.recordActivity(member.id);
     }
   }
 
-  private async sendNotification(type: 'notify' | 'warn', member: GuildMember, settings: import('../types/index.js').AfkSettings): Promise<void> {
+  private async sendNotification(
+    type: 'notify' | 'warn',
+    member: GuildMember,
+    settings: import('../types/index.js').AfkSettings,
+    remainingMinutes = 30,
+  ): Promise<void> {
     let targetChannel: import('discord.js').TextChannel | null = null;
 
     const vcId = member.voice.channel?.id;
@@ -175,9 +170,9 @@ export class AfkManager {
       embed = new CustomEmbed(member.user)
         .setDescription(`${member} 放置状態で1時間が経過しました。ニックネームの頭に🛌をつけました`);
     } else if (type === 'warn') {
-      const afkChannelMention = settings.afkChannelId ? `<#${settings.afkChannelId}>` : '放置用チャンネル';
+      const afkChannelMention = settings.afkChannelId ? `<#${settings.afkChannelId}>` : 'AFKチャンネル';
       embed = new CustomEmbed(member.user)
-        .setDescription(`${member} 放置状態で2.5時間が経過しました。あと30分で ${afkChannelMention} に移動されます。`);
+        .setDescription(`${member} 放置状態で2.5時間が経過しました。あと${remainingMinutes}分で ${afkChannelMention} に移動されます。`);
       content = `${member} おはようございます！！`;
     }
 
@@ -222,18 +217,20 @@ export class AfkManager {
           try {
             await this.restoreNickname(member, userData.originalNickname);
             await member.voice.setChannel(settings.afkChannelId!, '放置時間が長いためAFKチャンネルに移動しました。');
-            console.log(`[AFKManager] ${member.user.tag} をAFKチャンネルに移動しました。`);
+            console.log(`[AFK] ${member.user.tag} をAFKチャンネルに移動しました。`);
           } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : String(error);
-            console.error('[AFKManager] AFKユーザーの移動に失敗:', msg);
+            console.error('[AFK] AFKユーザーの移動に失敗:', msg);
           }
         }
         this.trackedUsers.delete(userId);
         continue;
       }
 
-      if (!userData.warned && inactivityDuration > TWO_AND_HALF_HOURS_MS) {
-        await this.sendNotification('warn', member, settings);
+      // 警告はAFKタイムアウトが2.5時間より長い場合のみ送る（タイムアウト後に警告が出るのを防ぐ）
+      if (!userData.warned && afkTimeout > TWO_AND_HALF_HOURS_MS && inactivityDuration > TWO_AND_HALF_HOURS_MS) {
+        const remainingMinutes = Math.max(1, Math.round((afkTimeout - TWO_AND_HALF_HOURS_MS) / 60000));
+        await this.sendNotification('warn', member, settings, remainingMinutes);
         userData.warned = true;
         this.trackedUsers.set(userId, userData);
       }
@@ -248,10 +245,10 @@ export class AfkManager {
 
             try {
               await member.setNickname(PRE_AFK_PREFIX + currentNickname, '1時間以上放置しているため');
-              console.log(`[AFKManager] ${member.user.tag} を前兆AFK状態にしました。`);
+              console.log(`[AFK] ${member.user.tag} を前兆AFK状態にしました。`);
             } catch (error: unknown) {
               const msg = error instanceof Error ? error.message : String(error);
-              console.error('[AFKManager] 前兆AFKニックネーム設定に失敗:', msg);
+              console.error('[AFK] 前兆AFKニックネーム設定に失敗:', msg);
               userData.isPreAfk = false;
               userData.originalNickname = null;
               this.trackedUsers.set(userId, userData);

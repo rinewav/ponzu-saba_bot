@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { BotCommand } from '../types/index.js';
 import { levelManager } from '../lib/levelManager.js';
-import { CustomEmbed } from '../lib/customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from '../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
   .setName('level')
@@ -14,7 +14,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const targetUser = interaction.options.getUser('user') ?? interaction.user;
   const member = await interaction.guild!.members.fetch(targetUser.id).catch(() => null);
   if (!member) {
-    await interaction.reply({ content: '指定されたユーザーが見つかりません。', ephemeral: true });
+    await interaction.reply({ content: '指定されたユーザーが見つかりません。', flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -25,7 +25,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const embed = new CustomEmbed(targetUser)
     .setTitle(`📊 ${member.displayName} のレベル情報`)
-    .setColor(0x5865F2)
+    .setColor(EMBED_COLORS.INFO)
     .setThumbnail(targetUser.displayAvatarURL())
     .addFields(
       { name: 'レベル', value: `**${userData.level}**`, inline: true },

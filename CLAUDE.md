@@ -53,18 +53,31 @@ bd close <id>         # Complete work
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+npm ci                 # 依存関係のインストール
+npm run typecheck      # tsc --noEmit（唯一の品質ゲート。テストは未整備）
+npm run dev            # tsx watch src/index.ts（.env が必要）
+npm run deploy         # スラッシュコマンド登録（CLIENT_ID / GUILD_IDS / MAIN_BOT_TOKEN）
 ```
+
+- ローカルで本番トークンを使って Bot を起動しないこと（本番と二重稼働になりイベントが二重処理される）。
+- 読み取り専用の調査は discord.js の `REST` + `Routes` で GET のみ行う。
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+- TypeScript + ESM、discord.js v14、実行は `tsx`（ビルド成果物なし）。
+- `src/index.ts` がコマンド・イベントを配列で登録する（動的ロードなし）。新規コマンドは `src/index.ts` と `src/deploy-commands.ts` の両方に追加する。
+- `src/lib/*Manager.ts` が機能ごとのビジネスロジック、`src/lib/repositories/*` が永続化。状態は `data/settings.json`（設定）/ `data/runtime.json`（実行時データ）/ `data/applications.json`（参加認証申請）に分割保存され、`baseRepository.ts` が 500ms デバウンスで原子的に書き込む。`save('settings' | 'runtime' | 'applications')` でスライスを指定する。
+- レベルデータのみ `data/levels.json`（`levelRepo.ts`）。
+- 参加認証: クイズ → フォーム → 審査 → チケット作成 → NDA 署名（`verificationWebServer.ts`、Express）→ PDF（`ndaPdfGenerator.ts`）→ DM 送付 → チケット後処理。
+- 設定 UI は `/setup`（`src/commands/admin/setup.ts`）に集約。ボタン ID `setup_<x>` とモーダル ID `setup_m_<x>` は `SIMPLE_SETUP_ACTIONS` で対応付ける。
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+- 2 スペースインデント、シングルクォート、ユーザー向け文言は日本語。
+- ephemeral 返信は `flags: MessageFlags.Ephemeral`（`ephemeral: true` は非推奨）。
+- Embed の色は `EMBED_COLORS`（`src/lib/customEmbed.ts`）を使う。
+- ログ接頭辞は `[Level]` `[Kikisen]` `[NDA]` `[Verification]` `[VCLog]` `[AFK]` `[Cleanup]` `[DailyStats]` など英語のモジュール名。
+- イベントハンドラの例外は `src/index.ts` で捕捉されるが、cron / setInterval / setTimeout 内の Promise は必ず `.catch` すること。
+- 日付判定は必ず `Asia/Tokyo` を明示する（サーバーのローカルタイムゾーンに依存しない）。
+- 課題管理は `bd`（beads）。

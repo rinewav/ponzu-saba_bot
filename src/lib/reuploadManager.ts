@@ -68,7 +68,7 @@ export class ReuploadManager {
         const fileSizeInMB = stats.size / (1024 * 1024);
 
         const embed = new CustomEmbed(message.author)
-          .setTitle('📁 ファイルが送信されました')
+          .setTitle('📁 添付ファイルをバックアップしました')
           .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL() })
           .setDescription(`**${message.channel}** への投稿をバックアップしました。\n[元のメッセージへ飛ぶ](${message.url})`);
 

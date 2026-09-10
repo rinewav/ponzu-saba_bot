@@ -4,34 +4,53 @@
 
 ## 機能一覧
 
-| カテゴリ                | 機能                                                                      | コマンド                                                      |
-| ----------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| 🛡️ 参加認証             | ルールクイズ → 申請フォーム → 審査 → NDA署名 → 認証ロール付与の完全フロー | `/setup-verification`                                         |
-| 🛡️ 認証フォーム         | 申請フォーム項目のカスタマイズ（最大5項目）                               | `/setup-verification` → 📝 申請フォーム設定                   |
-| 🛡️ 認証管理             | バイパスリスト管理、申請リセット、ユーザー検索                            | `/verification-bypass`, `/verification-reset`                 |
-| 📋 NDA署名              | ブラウザ上でNDA署名、PDF生成（CJKフォント対応）、SHA-256ハッシュ検証      | （自動）                                                      |
-| 🔝 レベル               | メッセージ/通話XP、レベルアップ報酬ロール、ログインボーナス               | `/level`, `/level-roles`, `/level-edit`, `/setup-level`       |
-| 🛌 AFK                  | 放置検知、ニックネームPrefix、AFKチャンネル自動移動                       | `/setup-afk`                                                  |
-| 👁️‍🗨️ 聞き専               | VCに紐付くテキストチャンネル自動作成/削除、ログ保存                       | `/kikisen-manage`, `/setup-kikisenlog`                        |
-| 🧹 クリーンアップ       | 退出メンバーのメッセージ/リアクション一括削除                             | `/cleanup`, `/setup-cleanup`                                  |
-| 🔨 追い打ちBAN          | 退出時の自動BAN                                                           | `/setup-reban`                                                |
-| 📊 デイリー統計         | サーバー活動レポート（グラフ付き）                                        | `/stats-now`, `/setup-dailystats`                             |
-| 🔔 VC通知               | 通話開始時の通知                                                          | `/setup-vcnotify`                                             |
-| 🎤 VCロール             | 通話参加中ロール付与                                                      | `/setup-voicerole`                                            |
-| 💪 筋トレ通知           | 24時間未報告時のリマインダー                                              | `/setup-workout`                                              |
-| 📊 ロールパネル         | セレクトメニュー式ロール選択                                              | `/role-panel`, `/setup-role-panel`                            |
-| 👽 クロスポスト通知     | 他サーバーでの絵文字/スタンプ使用通知                                     | `/setup-crosspost`                                            |
-| 📁 ファイル再アップ     | 添付ファイルの自動バックアップ                                            | `/setup-reupload`                                             |
-| 🛡️ ウイルススキャン     | URL/添付ファイルのVirusTotalスキャン                                      | （自動検知）                                                  |
-| 🧩 テンプレート         | 常に最新状態を維持するテンプレートメッセージ                              | `/setup-template`, `/setup-introduction`, `/setup-message-id` |
-| 📝 ログ                 | 各種イベントのログ記録                                                    | `/setup-logs`                                                 |
-| ⏰ ステータスチャンネル | 日付/時刻VCチャンネルの自動更新                                           | （自動動作）                                                  |
-| 🔄 リロード             | ボットコマンド再読み込み                                                  | `/reload`                                                     |
+設定はすべて `/setup` に集約されています。表の「設定場所」は `/setup` を実行したあとに選ぶメニュー項目です。
+
+| カテゴリ                  | 機能                                                                     | 設定場所・コマンド                             |
+| ------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
+| 🛡️ 参加認証               | ルールクイズ → 申請フォーム → 審査 → NDA署名 → 認証ロール付与の完全フロー | `/setup` → 参加認証                            |
+| 🛡️ 認証フォーム           | 申請フォーム項目のカスタマイズ（最大5項目）                              | `/setup` → 参加認証 → 申請フォーム設定         |
+| 🛡️ 認証管理               | バイパスリスト管理、申請リセット、ユーザー検索                           | `/verification-bypass`, `/verification-reset`  |
+| 🎫 チケット後処理         | チケットの削除/アーカイブ状況の確認・移行、アーカイブカテゴリ管理        | `/verification-tickets`                        |
+| 📋 NDA署名                | ブラウザ上でNDA署名、PDF生成（CJKフォント対応）、SHA-256ハッシュ検証     | （自動）                                       |
+| 🔝 レベル                 | メッセージ/通話XP（メッセージXPは60秒クールダウン）、報酬ロール、ログインボーナス | `/level`, `/level-role`, `/level-edit`, `/setup` → レベル |
+| 🛌 AFK                    | 放置検知、ニックネームPrefix、AFKチャンネル自動移動                      | `/setup` → AFK                                 |
+| 👁️‍🗨️ 聞き専                 | VCに紐付くテキストチャンネル自動作成/削除、ログ保存                      | `/kikisen-manage`, `/setup` → 聞き専ログ       |
+| 🧹 クリーンアップ         | 退出メンバーのメッセージ/リアクション一括削除                            | `/cleanup`, `/setup` → クリーンアップ          |
+| 🔨 追い打ちBAN            | 退出時の自動BAN                                                          | `/setup` → 追い打ちBAN                         |
+| 📊 デイリー統計           | サーバー活動レポート（グラフ付き）                                       | `/stats-now`, `/setup` → デイリー統計          |
+| 🎤 VC通話ログ             | 通話の開始/終了ログの記録                                                | `/setup` → VC通話ログ                          |
+| 🎤 VC参加中ロール         | 通話に参加している間だけロールを付与                                     | `/setup` → VCロール                            |
+| 💪 筋トレ通知             | 24時間未報告時のリマインダー                                             | `/setup` → 筋トレ通知                          |
+| 🗳️ ロールパネル           | セレクトメニュー式ロール選択                                             | `/setup` → ロールパネル                        |
+| 👽 絵文字/スタンプ通知    | 他サーバーでの絵文字/スタンプ使用通知                                    | `/setup` → 絵文字/スタンプ通知                 |
+| 📁 ファイル再アップロード | 添付ファイルの自動バックアップ                                           | `/setup` → ファイル再アップロード              |
+| 🛡️ ウイルススキャン       | URL/添付ファイルのVirusTotalスキャン（添付は32MBまで）（画像/動画/音声の添付は既定で除外、/setup で切替） | （自動検知）                                   |
+| 🧩 テンプレート           | 常に最新状態を維持するテンプレートメッセージ、Botメッセージの本文編集    | `/setup` → テンプレート                        |
+| 📝 監査ログ               | 各種イベントのログ記録                                                   | `/setup` → 監査ログ                            |
+| ⏰ ステータスチャンネル   | 日付/時刻VCチャンネルの自動更新                                          | （自動動作）                                   |
+| 🔄 再起動                 | ボットの再起動                                                           | `/reload`                                      |
+
+### コマンド一覧
+
+| コマンド                                                        | 権限   | 説明                                                     |
+| --------------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| `/setup`                                                        | 管理者 | 全機能の設定を一元管理                                   |
+| `/cleanup`                                                      | 管理者 | サーバーのクリーンアップを実行                           |
+| `/kikisen-manage link \| unlink \| sync`                        | 管理者 | 聞き専チャットの強制リンク・解除・同期                   |
+| `/level-edit`                                                   | 管理者 | ユーザーのレベル/XP/ストリークデータを編集               |
+| `/reload`                                                       | 管理者 | ボットを再起動                                           |
+| `/verification-bypass add \| remove \| list \| bulk \| tickets-only` | 管理者 | 参加認証のバイパス管理・一括バイパス・チケット再生成 |
+| `/verification-reset`                                           | 管理者 | ユーザーの参加認証申請をリセット                         |
+| `/verification-tickets status \| migrate \| archive-category add \| remove \| list` | 管理者 | チケット後処理の状況確認・移行、アーカイブカテゴリ管理 |
+| `/level`                                                        | 全員   | ユーザーのレベル/XP情報を表示                            |
+| `/level-role`                                                   | 全員   | レベルアップ報酬ロールを表示                             |
+| `/stats-now`                                                    | 全員   | 現在のデイリー統計レポートを生成して表示                 |
 
 ### 参加認証フロー
 
 ```
-ウェルカムチャンネルで「始める」ボタン押下
+はじめにチャンネルの「ルールクイズを始める」ボタン押下
   ↓
 📝 ルールクイズ（設定した問題数に全問正解）
   ↓
@@ -41,13 +60,43 @@
   ↓
 🔒 チケットチャンネル作成 → NDA署名（ブラウザ）
   ↓
-✅ 認証ロール付与・ウェルカムメッセージ送信・PDF保管
+🗄️ PDF+SHA-256 をアーカイブチャンネルへ記録
+  ↓
+📬 本人のDMへPDF送付
+   （DMが閉じている場合は「もう一度送る」ボタンで再送。届くまで認証済みロールは付与されない）
+  ↓
+✅ 認証ロール付与・ウェルカムメッセージ
+  ↓
+🎫 チケットは会話が無ければ削除、あればアーカイブカテゴリへ移動
+   （満杯時は自動で次のカテゴリを作成）
 ```
 
 ## 必要要件
 
 - Node.js 20+
 - npm
+
+## 環境変数
+
+`.env.example` をコピーして `.env` を作成し、以下の値を設定します。
+
+| キー                     | 説明                                                                       |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `MAIN_BOT_TOKEN`         | Discord Bot のトークン                                                     |
+| `CLIENT_ID`              | Discord アプリケーションのクライアントID（コマンド登録に使用）             |
+| `GUILD_IDS`              | コマンドを登録するサーバーIDをカンマ区切りで指定                           |
+| `WELCOME_CHANNEL_ID`     | 参加時のウェルカムメッセージを送信するチャンネルID                         |
+| `LEAVE_CHANNEL_ID`       | （旧データ互換用）退出時に削除するウェルカムメッセージの投稿先。新規分は投稿先を自動記録 |
+| `DATE_CHANNEL_ID`        | 日付を表示するステータス用ボイスチャンネルID                               |
+| `TIME_CHANNEL_ID`        | 時刻を表示するステータス用ボイスチャンネルID                               |
+| `INTRO_CHANNEL_ID`       | 自己紹介チャンネルのID                                                     |
+| `FOOTER_ICON_URL`        | Embed フッターに表示するアイコンのURL（任意）                              |
+| `VIRUSTOTAL_API_KEY`     | ウイルススキャンに使う VirusTotal の APIキー                               |
+| `NDA_WEB_PORT`           | NDA署名Webサーバーの待受ポート（既定: 3001）                               |
+| `NDA_PUBLIC_URL`         | NDA署名ページの公開URL（未設定時は `http://localhost:3001`）               |
+| `DISCORD_CLIENT_SECRET`  | NDA署名ページの Discord OAuth2 認証に使うクライアントシークレット          |
+| `PROXYCHECK_API_KEY`     | NDA署名時のVPN/プロキシ判定に使う proxycheck.io の APIキー                 |
+| `TRUST_PROXY`            | リバースプロキシ配下で `X-Forwarded-For` を信頼するか（直接公開時は `false`） |
 
 ## プロジェクト構成
 
@@ -57,10 +106,11 @@ src/
 ├── deploy-commands.ts          # コマンド登録スクリプト
 ├── types/
 │   ├── discord.d.ts            # Client拡張型
+│   ├── fontkit.d.ts            # fontkit の型定義
 │   ├── state.ts                # 状態管理の型
 │   └── index.ts                # 型のバレルエクスポート
 ├── lib/                        # ビジネスロジック
-│   ├── customEmbed.ts          # 共通Embed
+│   ├── customEmbed.ts          # 共通Embed・カラー定義
 │   ├── verificationManager.ts  # 参加認証マネージャー
 │   ├── verificationWebServer.ts # NDA署名Webサーバー
 │   ├── ndaPdfGenerator.ts      # NDA PDF生成
@@ -69,15 +119,15 @@ src/
 │   ├── kikisenManager.ts       # 聞き専管理
 │   ├── cleanupManager.ts       # クリーンアップ
 │   ├── dailyStatsManager.ts    # デイリー統計
-│   ├── vcNotifyManager.ts      # VC通知
+│   ├── vcLogManager.ts         # VC通話ログ
 │   ├── virusTotalManager.ts    # ウイルススキャン
-│   ├── reuploadManager.ts      # ファイル再アップ
-│   ├── logManager.ts           # ログ管理
+│   ├── reuploadManager.ts      # ファイル再アップロード
+│   ├── logManager.ts           # 監査ログ管理
 │   ├── rolePanelManager.ts     # ロールパネル
 │   ├── templateManager.ts      # テンプレート
 │   ├── workoutNotifyManager.ts # 筋トレ通知
-│   ├── crossPostManager.ts     # クロスポスト通知
-│   ├── voiceRoleManager.ts     # VCロール
+│   ├── crossPostManager.ts     # 絵文字/スタンプ通知
+│   ├── voiceRoleManager.ts     # VC参加中ロール
 │   ├── updateStatusChannels.ts # ステータスチャンネル更新
 │   ├── introductionTemplateEmbed.ts # 自己紹介テンプレート
 │   └── repositories/           # 状態永続化層（JSON）
@@ -95,33 +145,17 @@ src/
 │       └── index.ts
 ├── commands/                   # スラッシュコマンド
 │   ├── level.ts                # /level
-│   ├── level-role.ts           # /level-roles
+│   ├── level-role.ts           # /level-role
 │   ├── stats-now.ts            # /stats-now
-│   ├── role-panel.ts           # /role-panel
 │   └── admin/                  # 管理者コマンド
-│       ├── setup-verification.ts
+│       ├── setup.ts            # /setup（全設定の一元管理）
+│       ├── cleanup.ts
+│       ├── kikisen-manage.ts
+│       ├── level-edit.ts
+│       ├── reload.ts
 │       ├── verification-bypass.ts
 │       ├── verification-reset.ts
-│       ├── setup-level.ts
-│       ├── level-edit.ts
-│       ├── setup-afk.ts
-│       ├── kikisen-manage.ts
-│       ├── setup-kikisenlog.ts
-│       ├── setup-cleanup.ts
-│       ├── cleanup.ts
-│       ├── setup-reban.ts
-│       ├── setup-dailystats.ts
-│       ├── setup-vcnotify.ts
-│       ├── setup-voicerole.ts
-│       ├── setup-workout.ts
-│       ├── setup-role-panel.ts
-│       ├── setup-crosspost.ts
-│       ├── setup-reupload.ts
-│       ├── setup-template.ts
-│       ├── setup-introduction.ts
-│       ├── setup-message-id.ts
-│       ├── setup-logs.ts
-│       └── reload.ts
+│       └── verification-tickets.ts
 ├── events/                     # イベントハンドラ
 │   ├── ready.ts
 │   ├── interactionCreate.ts
@@ -134,14 +168,19 @@ src/
 │   ├── levelMessageCreate.ts
 │   ├── statsTracker.ts
 │   ├── loggingHandler.ts
-│   ├── cleanupInteraction.ts
 │   ├── messageVirusScan.ts
 │   ├── afkNicknameHandler.ts
 │   ├── afkActivityTracker.ts
 │   ├── autoCleanupOnLeave.ts
 │   └── rebanHandler.ts
 data/                           # 実行時データ（JSON、Git管理外）
+├── settings.json               # 設定
+├── runtime.json                # 実行時データ
+├── applications.json           # 参加認証申請
+└── levels.json                 # レベル
 ```
+
+旧形式の `data/kikisen-state.json` が残っている場合は、初回起動時に上記のファイルへ自動で移行されます（旧ファイルはバックアップとして退避されます）。
 
 ## ライセンスについて
 
@@ -168,9 +207,11 @@ Copyright (c) 2026 りね（ぽん酢鯖）, All Rights Reserved.
 - **[discord.js](https://discord.js.org/)** (Apache-2.0)
 - **[express](https://expressjs.com/)** (MIT)
 - **[pdfkit](https://pdfkit.org/)** (MIT)
+- **[fontkit](https://github.com/foliojs/fontkit)** (MIT)
 - **[chart.js](https://www.chartjs.org/)** (MIT)
 - **[chartjs-node-canvas](https://github.com/Sean-Bradley/Chartjs-Node-Canvas)** (MIT)
-- **[node-fetch](https://github.com/node-fetch/node-fetch)** (MIT)
+- **[axios](https://axios-http.com/)** (MIT)
+- **[node-cron](https://github.com/node-cron/node-cron)** (ISC)
 - **[dotenv](https://github.com/motdotla/dotenv)** (BSD-2-Clause)
 - **[tsx](https://github.com/privatenumber/tsx)** (MIT)
 - **[typescript](https://www.typescriptlang.org/)** (Apache-2.0)

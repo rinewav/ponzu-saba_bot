@@ -21,7 +21,7 @@ export class CleanupManager {
   private async resumeInterruptedJobs(): Promise<void> {
     const jobs = await cleanupRepo.getAllCleanupJobs();
     for (const guildId in jobs) {
-      console.log(`[クリーンアップ] 中断されたジョブを検出しました (Guild: ${guildId})。処理を再開します。`);
+      console.log(`[Cleanup] 中断されたジョブを検出しました (Guild: ${guildId})。処理を再開します。`);
       const guild = await this.client!.guilds.fetch(guildId).catch(() => null);
       if (guild) {
         this.executeCleanup(guild);
@@ -46,7 +46,7 @@ export class CleanupManager {
 
   async executeCleanup(guild: Guild): Promise<void> {
     if (processingGuilds.has(guild.id)) return;
-    if (!this.client) { console.error('[クリーンアップ] Clientが初期化されていません。'); return; }
+    if (!this.client) { console.error('[Cleanup] Clientが初期化されていません。'); return; }
 
     processingGuilds.add(guild.id);
     const cleanupSettings = (await cleanupRepo.getCleanupSettings(guild.id)) || {};
@@ -112,7 +112,7 @@ export class CleanupManager {
       while (jobData.channelsToScan.length > 0) {
         let currentJobState = await cleanupRepo.getCleanupJob(guild.id);
         while (currentJobState?.isPaused) {
-          console.log(`[クリーンアップ] 処理が一時停止されました (Guild: ${guild.id})`);
+          console.log(`[Cleanup] 処理が一時停止されました (Guild: ${guild.id})`);
           if (progressMessage) {
             const pauseRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
               new ButtonBuilder().setCustomId(`cleanup_resume_${guild.id}`).setLabel('再開').setStyle(ButtonStyle.Success).setEmoji('▶️'),
@@ -133,7 +133,7 @@ export class CleanupManager {
         const channel = await guild.channels.fetch(channelId).catch(() => null);
 
         if (channel && channel.isTextBased()) {
-          console.log(`[クリーンアップ] #${channel.name} をスキャン中...`);
+          console.log(`[Cleanup] #${channel.name} をスキャン中...`);
 
           const activeThreads = channel.isThread() ? [] : await (channel as import('discord.js').TextChannel).threads.fetchActive().catch(() => ({ threads: new Map() }));
           const channelsToScan = [channel, ...('threads' in activeThreads ? (activeThreads as { threads: Map<string, import('discord.js').AnyThreadChannel> }).threads.values() : [])];
@@ -210,7 +210,7 @@ export class CleanupManager {
       await cleanupRepo.endCleanupJob(guild.id);
 
     } catch (error) {
-      console.error(`[クリーンアップ] ${guild.name} でエラーが発生しました:`, error);
+      console.error(`[Cleanup] ${guild.name} でエラーが発生しました:`, error);
     } finally {
       processingGuilds.delete(guild.id);
     }

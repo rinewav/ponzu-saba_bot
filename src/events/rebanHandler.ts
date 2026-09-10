@@ -1,7 +1,6 @@
 import { Events, type GuildMember } from 'discord.js';
 import type { BotEvent } from '../types/index.js';
 import { miscRepo } from '../lib/repositories/index.js';
-import { logManager } from '../lib/logManager.js';
 
 const rebanEvent: BotEvent = {
   name: Events.GuildMemberRemove,
@@ -17,8 +16,6 @@ const rebanEvent: BotEvent = {
     } catch (error) {
       console.error(`[Reban] ${member.user.tag} の再Banに失敗しました:`, error);
     }
-
-    logManager.handleGuildMemberRemove(member);
   },
 };
 

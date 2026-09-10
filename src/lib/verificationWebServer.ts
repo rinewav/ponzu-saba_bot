@@ -35,10 +35,17 @@ const HTML_FOOT = `</div><div class="footer">Copyright &copy; ${new Date().getFu
 
 const oauthSessions = new Map<string, { email?: string; userTag: string; ip: string }>();
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// express の trust proxy 設定に基づいて req.ip が算出されるため、それを優先する
 function getClientIp(req: Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
-  if (Array.isArray(forwarded)) return forwarded[0].trim();
   return req.ip ?? req.socket.remoteAddress ?? 'unknown';
 }
 
@@ -102,6 +109,8 @@ export class VerificationWebServer {
 
   constructor() {
     this.app = express();
+    // リバースプロキシ配下では X-Forwarded-For を信頼する（TRUST_PROXY=false で無効化可能）
+    this.app.set('trust proxy', process.env.TRUST_PROXY === 'false' ? false : true);
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
     this.setupRoutes();
@@ -235,9 +244,18 @@ ${HTML_FOOT}`);
       return;
     }
 
+    // Discord OAuth を完了していないリクエストからの署名を防ぐ（申請者本人であることの確認が必須）
+    const session = oauthSessions.get(token);
+    if (!session) {
+      res.status(403).json({
+        success: false,
+        error: 'Discord認証が完了していません。ページを開き直して認証からやり直してください。',
+      });
+      return;
+    }
+
     try {
-      const session = oauthSessions.get(token);
-      const ip = session?.ip ?? getClientIp(req);
+      const ip = session.ip;
 
       if (await isVpnOrProxy(ip)) {
         console.warn(`[NDA] 署名時VPN/Proxy検出: IP=${ip}, userId=${tokenInfo.userId}`);
@@ -247,9 +265,9 @@ ${HTML_FOOT}`);
 
       verificationManager.consumeNdaToken(token);
 
-      application.ndaEmail = session?.email;
+      application.ndaEmail = session.email;
       application.ndaIpAddress = ip;
-      application.ndaUserTag = session?.userTag;
+      application.ndaUserTag = session.userTag;
 
       const fingerprint = req.body?.fingerprint;
       application.ndaFingerprint = typeof fingerprint === 'string' ? fingerprint : JSON.stringify(fingerprint ?? {});
@@ -302,10 +320,11 @@ ${HTML_FOOT}`);
 
   private renderNdaConsentPage(token: string, _displayName: string, discordName: string): string {
     const escapedNda = NDA_TEXT.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapedDiscordName = escapeHtml(discordName);
 
     return `${HTML_HEAD}
 <h1>🍋 NDA署名</h1>
-<p><strong>${discordName}</strong> として認証されました。</p>
+<p><strong>${escapedDiscordName}</strong> として認証されました。</p>
 <p>以下のNDA内容を確認のうえ、署名してください。</p>
 <div class="nda-text" id="ndaText">${escapedNda}</div>
 <div class="warn-scroll" id="scrollWarning">
@@ -446,7 +465,7 @@ ${HTML_FOOT}`;
   private renderError(message: string): string {
     return `${HTML_HEAD}
 <h1>⚠️ エラー</h1>
-<p class="error">${message}</p>
+<p class="error">${escapeHtml(message)}</p>
 <div class="center" style="margin-top:24px">
   <a href="https://discord.com/channels/@me" class="btn btn-secondary">Discordに戻る</a>
 </div>
@@ -464,11 +483,11 @@ ${HTML_FOOT}`;
         cert: readFileSync(certPath),
       };
       this.server = createHttpsServer(options, this.app).listen(port, () => {
-        console.log(`[NDA WebServer] HTTPS ポート ${port} で起動しました。`);
+        console.log(`[NDA] HTTPS ポート ${port} で起動しました。`);
       });
     } else {
       this.server = this.app.listen(port, () => {
-        console.log(`[NDA WebServer] HTTP ポート ${port} で起動しました。（証明書なし）`);
+        console.log(`[NDA] HTTP ポート ${port} で起動しました。（証明書なし）`);
       });
     }
   }

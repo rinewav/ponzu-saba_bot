@@ -10,6 +10,7 @@ import reload from './commands/admin/reload.js';
 import setup from './commands/admin/setup.js';
 import verificationBypass from './commands/admin/verification-bypass.js';
 import verificationReset from './commands/admin/verification-reset.js';
+import verificationTickets from './commands/admin/verification-tickets.js';
 import levelRole from './commands/level-role.js';
 import level from './commands/level.js';
 import statsNow from './commands/stats-now.js';
@@ -20,7 +21,7 @@ const token = process.env.MAIN_BOT_TOKEN!;
 
 const commands: BotCommand[] = [
   cleanup, setup, kikisenManage, levelEdit, reload,
-  verificationBypass, verificationReset, levelRole, level, statsNow,
+  verificationBypass, verificationReset, verificationTickets, levelRole, level, statsNow,
 ];
 
 async function main(): Promise<void> {

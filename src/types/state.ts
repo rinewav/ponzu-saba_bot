@@ -28,6 +28,7 @@ export interface GuildSettings {
   levelSystem?: LevelSettings;
   reupload?: ReuploadSettings;
   rebanOnLeave?: RebanSettings;
+  virusScan?: VirusScanSettings;
   templates?: Record<string, TemplateSettings>;
   templatesByChannel?: Record<string, ChannelTemplateSettings>;
 }
@@ -71,6 +72,8 @@ export interface VerificationSettings {
   quizPassCount?: number;
   bypassList?: string[];
   formFields?: FormFieldConfig[];
+  /** 会話ありチケットの移動先カテゴリ（満杯時に自動作成される。作成順） */
+  ticketArchiveCategoryIds?: string[];
 }
 
 export interface VerificationQuestion {
@@ -89,18 +92,25 @@ export interface VerificationApplication {
   portfolio?: string;
   onlineHours?: string;
   note?: string;
-  status: 'quiz' | 'pending' | 'approved' | 'rejected' | 'nda_pending' | 'completed';
+  status: 'quiz' | 'pending' | 'approved' | 'rejected' | 'archived' | 'nda_pending' | 'completed';
   submittedAt: number;
   reviewedBy?: string;
   reviewedAt?: number;
   ticketChannelId?: string;
   ndaToken?: string;
+  ndaTokenExpiresAt?: number;
   ndaSignedAt?: number;
   ndaEmail?: string;
   ndaIpAddress?: string;
   ndaUserTag?: string;
   ndaFingerprint?: string;
   formData?: Record<string, string>;
+  /** NDA記録PDFを本人のDMへ送付できたか */
+  ndaDmDelivered?: boolean;
+  /** NDA記録PDFをアーカイブチャンネルへ投稿できたか */
+  ndaArchived?: boolean;
+  /** チケットチャンネルの後処理（削除 or アーカイブ移動）が完了したか */
+  ticketFinalized?: boolean;
 }
 
 export interface DailyStatsSettings {
@@ -125,6 +135,8 @@ export interface WorkoutSettings {
 export interface LevelSettings {
   levelUpChannelId?: string;
   xpPerMessage?: number;
+  /** メッセージXPのクールダウン秒数（既定60） */
+  xpCooldownSeconds?: number;
   xpPerSecondVoice?: number;
   loginBonusBaseXp?: number;
   excludedChannels?: string[];
@@ -137,6 +149,11 @@ export interface ReuploadSettings {
 
 export interface RebanSettings {
   enabled?: boolean;
+}
+
+export interface VirusScanSettings {
+  /** 画像/動画/音声の添付をスキャン対象から除外する（既定: true） */
+  skipMediaAttachments?: boolean;
 }
 
 export interface TemplateSettings {
@@ -206,11 +223,17 @@ export interface VcLogSession {
   participants: string[];
 }
 
+export interface WelcomeMessageRef {
+  messageId: string;
+  channelId: string;
+}
+
 export interface AppState {
   guildSettings: Record<string, GuildSettings>;
   activeChannels: Record<string, Omit<ActiveChannelData, 'id'>>;
   dailyStats: Record<string, DailyStatsData>;
-  welcomeMessages: Record<string, string>;
+  /** 旧形式は messageId 文字列のみ。新形式は { messageId, channelId } */
+  welcomeMessages: Record<string, string | WelcomeMessageRef>;
   workoutTimestamps: Record<string, WorkoutTimestampData>;
   cleanupJobs: Record<string, CleanupJobData>;
   rolePanels: Record<string, RolePanelData>;

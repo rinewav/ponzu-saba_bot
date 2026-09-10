@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { BotCommand } from '../../types/index.js';
 import { cleanupManager } from '../../lib/cleanupManager.js';
 
@@ -8,7 +8,7 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.reply({ content: '🧹 クリーンアップ処理を開始します...', ephemeral: true });
+  await interaction.reply({ content: '🧹 クリーンアップ処理を開始します...', flags: MessageFlags.Ephemeral });
   await cleanupManager.executeCleanup(interaction.guild!);
 }
 

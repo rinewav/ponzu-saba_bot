@@ -1,7 +1,7 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import type { BotCommand } from '../types/index.js';
 import { levelRepo } from '../lib/repositories/index.js';
-import { CustomEmbed } from '../lib/customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from '../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
   .setName('level-role')
@@ -13,7 +13,7 @@ export async function execute(interaction: import('discord.js').ChatInputCommand
 
   const embed = new CustomEmbed(interaction.user)
     .setTitle('🎖️ レベルアップ報酬ロール')
-    .setColor(0x5865F2);
+    .setColor(EMBED_COLORS.INFO);
 
   if (entries.length === 0) {
     embed.setDescription('現在、レベルアップ報酬ロールは設定されていません。');
@@ -25,7 +25,7 @@ export async function execute(interaction: import('discord.js').ChatInputCommand
     embed.setDescription(description);
   }
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 const command: BotCommand = { data, execute };

@@ -8,7 +8,7 @@ export class WorkoutRepository extends BaseRepository {
 
   async setWorkoutSettings(guildId: string, settings: WorkoutSettings): Promise<void> {
     this.getGuildSettings(guildId).workoutNotify = settings;
-    await this.save();
+    await this.save('settings');
   }
 
   async getWorkoutTimestamps(): Promise<Record<string, WorkoutTimestampData>> {
@@ -18,13 +18,13 @@ export class WorkoutRepository extends BaseRepository {
   async setWorkoutTimestamp(userId: string, data: WorkoutTimestampData): Promise<void> {
     if (!this.getState().workoutTimestamps) this.getState().workoutTimestamps = {};
     this.getState().workoutTimestamps[userId] = data;
-    await this.save();
+    await this.save('runtime');
   }
 
   async removeWorkoutTimestamp(userId: string): Promise<void> {
     if (this.getState().workoutTimestamps?.[userId]) {
       delete this.getState().workoutTimestamps[userId];
-      await this.save();
+      await this.save('runtime');
     }
   }
 }

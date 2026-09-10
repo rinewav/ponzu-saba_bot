@@ -1,7 +1,7 @@
 import type { Client, VoiceState } from 'discord.js';
 import { BaseRepository } from './repositories/baseRepository.js';
 import { vcNotifyRepo } from './repositories/index.js';
-import { CustomEmbed } from './customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from './customEmbed.js';
 import type { VcLogSession } from '../types/index.js';
 
 export class VcLogRepository extends BaseRepository {
@@ -13,14 +13,14 @@ export class VcLogRepository extends BaseRepository {
     const state = this.getState();
     if (!state.vcLogSessions) state.vcLogSessions = {};
     state.vcLogSessions[vcChannelId] = session;
-    await this.save();
+    await this.save('runtime');
   }
 
   async deleteVcLogSession(vcChannelId: string): Promise<void> {
     const state = this.getState();
     if (state.vcLogSessions) {
       delete state.vcLogSessions[vcChannelId];
-      await this.save();
+      await this.save('runtime');
     }
   }
 
@@ -28,7 +28,7 @@ export class VcLogRepository extends BaseRepository {
     const sessions = this.getState().vcLogSessions;
     if (sessions?.[vcChannelId] && !sessions[vcChannelId].participants.includes(memberId)) {
       sessions[vcChannelId].participants.push(memberId);
-      await this.save();
+      await this.save('runtime');
     }
   }
 
@@ -36,7 +36,7 @@ export class VcLogRepository extends BaseRepository {
     const sessions = this.getState().vcLogSessions;
     if (sessions?.[vcChannelId]) {
       sessions[vcChannelId].participants = sessions[vcChannelId].participants.filter(id => id !== memberId);
-      await this.save();
+      await this.save('runtime');
     }
   }
 }
@@ -53,10 +53,11 @@ interface ActiveSession {
 export class VcLogManager {
   private client: Client | null = null;
   private activeSessions = new Map<string, ActiveSession>();
+  private pendingJoins = new Map<string, Promise<void>>();
 
   initialize(client: Client): void {
     this.client = client;
-    this.restoreSessions();
+    void this.restoreSessions().catch(err => console.error('[VCLog] セッションの復元に失敗しました:', err));
   }
 
   private async restoreSessions(): Promise<void> {
@@ -104,14 +105,35 @@ export class VcLogManager {
   }
 
   private async handleJoin(vcChannelId: string, memberId: string, guildId: string): Promise<void> {
-    const session = this.activeSessions.get(vcChannelId);
-
-    if (session) {
-      session.participants.add(memberId);
-      await vcLogRepo.addParticipant(vcChannelId, memberId);
+    const pending = this.pendingJoins.get(vcChannelId);
+    if (pending) {
+      await pending.catch(() => {});
+      await this.addParticipantToSession(vcChannelId, memberId);
       return;
     }
 
+    if (this.activeSessions.has(vcChannelId)) {
+      await this.addParticipantToSession(vcChannelId, memberId);
+      return;
+    }
+
+    const startPromise = this.startSession(vcChannelId, memberId, guildId);
+    this.pendingJoins.set(vcChannelId, startPromise);
+    try {
+      await startPromise;
+    } finally {
+      this.pendingJoins.delete(vcChannelId);
+    }
+  }
+
+  private async addParticipantToSession(vcChannelId: string, memberId: string): Promise<void> {
+    const session = this.activeSessions.get(vcChannelId);
+    if (!session) return;
+    session.participants.add(memberId);
+    await vcLogRepo.addParticipant(vcChannelId, memberId);
+  }
+
+  private async startSession(vcChannelId: string, memberId: string, guildId: string): Promise<void> {
     const settings = await vcNotifyRepo.getVcNotifySettings(guildId);
     if (!settings?.notificationChannelId) return;
     if (settings.excludedChannels?.includes(vcChannelId)) return;
@@ -120,7 +142,7 @@ export class VcLogManager {
     if (!logChannel || !logChannel.isTextBased()) return;
 
     const embed = new CustomEmbed()
-      .setColor(0x5865F2)
+      .setColor(EMBED_COLORS.INFO)
       .setTitle(`🎤 <#${vcChannelId}>`)
       .setDescription(`<@${memberId}> さんが通話を開始しました。`);
 
@@ -197,7 +219,7 @@ export class VcLogManager {
       const memberList = Array.from(participants).map(id => `<@${id}>`).join(', ');
 
       const embed = new CustomEmbed()
-        .setColor(0x2ECC71)
+        .setColor(EMBED_COLORS.SUCCESS)
         .setTitle(`🎤 通話終了`)
         .setDescription(
           `**チャンネル:** <#${vcChannelId}>\n` +

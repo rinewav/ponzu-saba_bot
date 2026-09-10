@@ -1,23 +1,56 @@
 import { BaseRepository } from './baseRepository.js';
 import type { VoiceRoleSettings, WorkoutSettings, WorkoutTimestampData, RolePanelData, LevelSettings, LevelUserData } from '../../types/index.js';
-import { readFile as fsReadFile, writeFile as fsWriteFile } from 'node:fs/promises';
+import { readFile as fsReadFile, writeFile as fsWriteFile, rename as fsRename } from 'node:fs/promises';
 import path from 'node:path';
 
 export class LevelRepository extends BaseRepository {
   private dataFile = path.join(process.cwd(), 'data', 'levels.json');
+  private tmpFile = path.join(process.cwd(), 'data', 'levels.json.tmp');
   private data: Record<string, Record<string, LevelUserData>> = {};
+  private isSaving = false;
+  private saveQueued = false;
 
   async loadLevelData(): Promise<void> {
     try {
       const raw = await fsReadFile(this.dataFile, 'utf8');
       this.data = JSON.parse(raw);
-    } catch {
+    } catch (error: unknown) {
       this.data = {};
+      const code = (error as NodeJS.ErrnoException)?.code;
+      if (code === 'ENOENT') {
+        console.log('[Level] レベルデータファイルが見つからないため、新規作成します。');
+        return;
+      }
+      console.error('[Level] レベルデータの読み込みに失敗しました:', error);
+      const corruptFile = `${this.dataFile}.corrupt-${Date.now()}`;
+      try {
+        await fsRename(this.dataFile, corruptFile);
+        console.error(`[Level] 破損した可能性のあるファイルを退避しました: ${corruptFile}`);
+      } catch (renameError) {
+        console.error('[Level] 破損ファイルの退避に失敗しました:', renameError);
+      }
     }
   }
 
   async saveLevelData(): Promise<void> {
-    await fsWriteFile(this.dataFile, JSON.stringify(this.data, null, 2), 'utf8');
+    if (this.isSaving) {
+      this.saveQueued = true;
+      return;
+    }
+    this.isSaving = true;
+    try {
+      const json = JSON.stringify(this.data, null, 2);
+      await fsWriteFile(this.tmpFile, json, 'utf8');
+      await fsRename(this.tmpFile, this.dataFile);
+    } catch (error) {
+      console.error('[Level] レベルデータの保存に失敗しました:', error);
+    } finally {
+      this.isSaving = false;
+      if (this.saveQueued) {
+        this.saveQueued = false;
+        await this.saveLevelData();
+      }
+    }
   }
 
   ensureUser(guildId: string, userId: string): LevelUserData {
@@ -65,7 +98,7 @@ export class LevelRepository extends BaseRepository {
 
   async setLevelSettings(guildId: string, settings: LevelSettings): Promise<void> {
     this.getGuildSettings(guildId).levelSystem = settings;
-    await this.save();
+    await this.save('settings');
   }
 
   async setLevelRole(guildId: string, level: number, roleId: string): Promise<void> {

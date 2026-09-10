@@ -1,8 +1,8 @@
-import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { BotCommand } from '../../types/index.js';
 import { verificationRepo } from '../../lib/repositories/index.js';
 import { verificationManager } from '../../lib/verificationManager.js';
-import { CustomEmbed } from '../../lib/customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from '../../lib/customEmbed.js';
 
 export const data = new SlashCommandBuilder()
   .setName('verification-reset')
@@ -18,16 +18,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   if (!active) {
     const embed = new CustomEmbed(interaction.user)
-      .setColor(0xFFAA00)
+      .setColor(EMBED_COLORS.WARN)
       .setTitle('⚠️ 該当なし')
       .setDescription(`${user} にアクティブな申請はありません。`);
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     return;
   }
 
   const statusMap: Record<string, string> = {
     quiz: '📝 クイズ中', pending: '⏳ 審査中', approved: '✅ 承認済み',
-    nda_pending: '📋 NDA待ち',
+    nda_pending: '📋 NDA待ち', archived: '📁 アーカイブ',
   };
 
   const beforeStatus = statusMap[active.status] ?? active.status;
@@ -35,7 +35,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const result = await verificationManager.resetUserApplication(guildId, user.id);
 
   const embed = new CustomEmbed(interaction.user)
-    .setColor(0x00FF00)
+    .setColor(EMBED_COLORS.SUCCESS)
     .setTitle('✅ リセット完了')
     .setDescription(
       `${user} の申請をリセットしました。\n\n` +
@@ -45,7 +45,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       'ユーザーは再度参加申請を行うことができます。',
     );
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 const command: BotCommand = { data, execute };

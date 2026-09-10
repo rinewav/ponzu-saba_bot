@@ -10,7 +10,7 @@ export class CleanupRepository extends BaseRepository {
     const gs = this.getGuildSettings(guildId);
     if (!gs.cleanup) gs.cleanup = {};
     Object.assign(gs.cleanup, settings);
-    await this.save();
+    await this.save('settings');
   }
 
   async addCleanupExcludedChannel(guildId: string, channelId: string): Promise<void> {
@@ -20,14 +20,14 @@ export class CleanupRepository extends BaseRepository {
     if (!gs.cleanup.excludedChannels.includes(channelId)) {
       gs.cleanup.excludedChannels.push(channelId);
     }
-    await this.save();
+    await this.save('settings');
   }
 
   async removeCleanupExcludedChannel(guildId: string, channelId: string): Promise<void> {
     const excluded = this.getState().guildSettings[guildId]?.cleanup?.excludedChannels;
     if (excluded) {
       this.getState().guildSettings[guildId].cleanup!.excludedChannels = excluded.filter((id) => id !== channelId);
-      await this.save();
+      await this.save('settings');
     }
   }
 
@@ -42,20 +42,20 @@ export class CleanupRepository extends BaseRepository {
   async startCleanupJob(guildId: string, jobData: Omit<CleanupJobData, 'isPaused' | 'progressMessageId'>): Promise<void> {
     if (!this.getState().cleanupJobs) this.getState().cleanupJobs = {};
     this.getState().cleanupJobs[guildId] = { ...jobData, isPaused: false, progressMessageId: null };
-    await this.save();
+    await this.save('runtime');
   }
 
   async updateCleanupJob(guildId: string, updatedData: Partial<CleanupJobData>): Promise<void> {
     if (this.getState().cleanupJobs?.[guildId]) {
       Object.assign(this.getState().cleanupJobs[guildId], updatedData);
-      await this.save();
+      await this.save('runtime');
     }
   }
 
   async endCleanupJob(guildId: string): Promise<void> {
     if (this.getState().cleanupJobs?.[guildId]) {
       delete this.getState().cleanupJobs[guildId];
-      await this.save();
+      await this.save('runtime');
     }
   }
 }

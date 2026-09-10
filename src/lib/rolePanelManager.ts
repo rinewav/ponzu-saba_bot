@@ -1,6 +1,6 @@
-import { StringSelectMenuBuilder, ActionRowBuilder, type ChatInputCommandInteraction, type StringSelectMenuInteraction } from 'discord.js';
+import { StringSelectMenuBuilder, ActionRowBuilder, MessageFlags, type ChatInputCommandInteraction, type StringSelectMenuInteraction } from 'discord.js';
 import { rolePanelRepo } from './repositories/index.js';
-import { CustomEmbed } from './customEmbed.js';
+import { CustomEmbed, EMBED_COLORS } from './customEmbed.js';
 
 export class RolePanelManager {
   // RolePanelManagerはクライアントを必要としないが、一貫性のために初期化メソッドを維持
@@ -16,7 +16,7 @@ export class RolePanelManager {
     const embed = new CustomEmbed(interaction.user)
       .setTitle(title)
       .setDescription(description)
-      .setColor(0x5865F2);
+      .setColor(EMBED_COLORS.INFO);
 
     const panelMessage = await (channel as import('discord.js').TextChannel).send({ embeds: [embed], content: 'ロールパネルをセットアップ中です...' });
 
@@ -44,7 +44,7 @@ export class RolePanelManager {
     const embed = new CustomEmbed()
       .setTitle(panelData.title)
       .setDescription(panelData.description)
-      .setColor(0x5865F2);
+      .setColor(EMBED_COLORS.INFO);
 
     const components: ActionRowBuilder<StringSelectMenuBuilder>[] = [];
     if (panelData.roles.length > 0) {
@@ -83,12 +83,16 @@ export class RolePanelManager {
     const panelData = await rolePanelRepo.getRolePanel(interaction.message.id);
     if (!panelData) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const member = interaction.member as import('discord.js').GuildMember;
 
+    const menuIndex = Number(interaction.customId.split('_').pop());
+    const chunkIndex = Number.isNaN(menuIndex) ? 0 : menuIndex;
+    const managedRoles = panelData.roles.slice(chunkIndex * 25, chunkIndex * 25 + 25);
+
     const selectedRoleIds = new Set<string>(interaction.values);
-    const managedRoleIds = new Set<string>(panelData.roles);
+    const managedRoleIds = new Set<string>(managedRoles);
 
     const rolesToAdd: string[] = [];
     const rolesToRemove: string[] = [];

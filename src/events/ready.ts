@@ -22,31 +22,107 @@ export default {
     if (!client.user) return;
     console.log(`✅ 準備完了！ ${client.user.tag} としてログインしました。`);
     client.user.setActivity('Welcome to ぽん酢鯖！', { type: ActivityType.Playing });
-    initializeStatusChannels(client);
-    console.log('⌚ 日付時刻チャンネル更新マネージャーの初期化が完了しました。');
-    await kikisenManager.initialize(client);
-    console.log('👁️‍🗨️ 聞き専チャットマネージャーの初期化が完了しました。');
-    levelManager.initialize(client);
-    console.log('🔝 レベルマネージャーの初期化が完了しました。');
-    afkManager.initialize(client);
-    console.log('🛌 AFKマネージャーの初期化が完了しました。');
-    voiceRoleManager.initialize(client);
-    console.log('🎤 ボイスチャット中ロールマネージャーの初期化が完了しました。');
-    logManager.initialize(client);
-    console.log('👮 ログシステムマネージャーの初期化が完了しました。');
-    dailyStatsManager.initialize(client);
-    console.log('📝 デイリー統計機能マネージャーの初期化が完了しました。');
-    vcLogManager.initialize(client);
-    console.log('📝 VC通話ログマネージャーの初期化が完了しました。');
-    workoutNotifyManager.initialize(client);
-    console.log('💪 筋トレリマインダーシステムの初期化が完了しました。');
-    cleanupManager.initialize(client);
-    console.log('🧹 クリーンアップシステムの初期化が完了しました。');
-    rolePanelManager.initialize(client);
-    console.log('📊 ロールパネルの初期化が完了しました。');
-    crossPostManager.initialize(client);
-    console.log('👽️ 絵文字/スタンプ通知機能が起動しました。');
-    reuploadManager.initialize(client);
-    console.log('📁 ファイル再アップロード機能が起動しました。');
+
+    const steps: { label: string; run: () => Promise<void> | void }[] = [
+      {
+        label: '日付時刻チャンネル更新マネージャー',
+        run: () => {
+          initializeStatusChannels(client);
+          console.log('⌚ 日付時刻チャンネル更新マネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: '聞き専チャットマネージャー',
+        run: async () => {
+          await kikisenManager.initialize(client);
+          console.log('👁️‍🗨️ 聞き専チャットマネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'レベルマネージャー',
+        run: () => {
+          levelManager.initialize(client);
+          console.log('🔝 レベルマネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'AFKマネージャー',
+        run: () => {
+          afkManager.initialize(client);
+          console.log('🛌 AFKマネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'VC参加中ロールマネージャー',
+        run: () => {
+          voiceRoleManager.initialize(client);
+          console.log('🎤 VC参加中ロールマネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'ログシステムマネージャー',
+        run: () => {
+          logManager.initialize(client);
+          console.log('👮 ログシステムマネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'デイリー統計機能マネージャー',
+        run: () => {
+          dailyStatsManager.initialize(client);
+          console.log('📝 デイリー統計機能マネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'VC通話ログマネージャー',
+        run: () => {
+          vcLogManager.initialize(client);
+          console.log('📝 VC通話ログマネージャーの初期化が完了しました。');
+        },
+      },
+      {
+        label: '筋トレリマインダーシステム',
+        run: () => {
+          workoutNotifyManager.initialize(client);
+          console.log('💪 筋トレリマインダーシステムの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'クリーンアップシステム',
+        run: () => {
+          cleanupManager.initialize(client);
+          console.log('🧹 クリーンアップシステムの初期化が完了しました。');
+        },
+      },
+      {
+        label: 'ロールパネル',
+        run: () => {
+          rolePanelManager.initialize(client);
+          console.log('📊 ロールパネルの初期化が完了しました。');
+        },
+      },
+      {
+        label: '絵文字/スタンプ通知機能',
+        run: () => {
+          crossPostManager.initialize(client);
+          console.log('👽 絵文字/スタンプ通知機能が起動しました。');
+        },
+      },
+      {
+        label: 'ファイル再アップロード機能',
+        run: () => {
+          reuploadManager.initialize(client);
+          console.log('📁 ファイル再アップロード機能が起動しました。');
+        },
+      },
+    ];
+
+    for (const { label, run } of steps) {
+      try {
+        await run();
+      } catch (error) {
+        console.error(`[Ready] ${label} の初期化に失敗:`, error);
+      }
+    }
   },
 } satisfies BotEvent;

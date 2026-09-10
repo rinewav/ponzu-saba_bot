@@ -13,6 +13,7 @@ import reload from './commands/admin/reload.js';
 import setup from './commands/admin/setup.js';
 import verificationBypass from './commands/admin/verification-bypass.js';
 import verificationReset from './commands/admin/verification-reset.js';
+import verificationTickets from './commands/admin/verification-tickets.js';
 import levelRole from './commands/level-role.js';
 import level from './commands/level.js';
 import statsNow from './commands/stats-now.js';
@@ -36,7 +37,7 @@ import statsTracker from './events/statsTracker.js';
 
 const commands: BotCommand[] = [
   cleanup, setup, kikisenManage, levelEdit, reload,
-  verificationBypass, verificationReset, levelRole, level, statsNow,
+  verificationBypass, verificationReset, verificationTickets, levelRole, level, statsNow,
 ];
 
 const events: (BotEvent | BotEvent[])[] = [
@@ -89,19 +90,29 @@ for (const item of events) {
   const items = Array.isArray(item) ? item : [item];
   for (const evt of items) {
     if (evt.once) {
-      client.once(evt.name, (...args: unknown[]) => evt.execute(...args, client));
+      client.once(evt.name, (...args: unknown[]) => {
+        Promise.resolve(evt.execute(...args, client)).catch(err => console.error(`[Event:${evt.name}] ハンドラでエラー:`, err));
+      });
     } else {
-      client.on(evt.name, (...args: unknown[]) => evt.execute(...args, client));
+      client.on(evt.name, (...args: unknown[]) => {
+        Promise.resolve(evt.execute(...args, client)).catch(err => console.error(`[Event:${evt.name}] ハンドラでエラー:`, err));
+      });
     }
   }
 }
 
 async function main(): Promise<void> {
+  process.on('unhandledRejection', (reason) => console.error('[Process] 未処理のPromise拒否:', reason));
+  process.on('uncaughtException', (err) => {
+    console.error('[Process] 未捕捉の例外:', err);
+  });
+
   await BaseRepository.load();
   await levelRepo.loadLevelData();
-  await client.login(process.env.MAIN_BOT_TOKEN);
 
   verificationManager.initialize(client);
+
+  await client.login(process.env.MAIN_BOT_TOKEN);
 
   const ndaPort = parseInt(process.env.NDA_WEB_PORT ?? '3001', 10);
   verificationWebServer.start(ndaPort);

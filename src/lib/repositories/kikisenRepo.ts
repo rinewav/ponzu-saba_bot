@@ -5,7 +5,7 @@ import type { Message } from 'discord.js';
 export class KikisenRepository extends BaseRepository {
   async setLogChannel(guildId: string, channelId: string): Promise<void> {
     this.getGuildSettings(guildId).logChannelId = channelId;
-    await this.save();
+    await this.save('settings');
   }
 
   getLogChannel(guildId: string): string | undefined {
@@ -31,12 +31,12 @@ export class KikisenRepository extends BaseRepository {
 
   async createActiveChannel(guildId: string, vcId: string, tcId: string): Promise<void> {
     this.getState().activeChannels[tcId] = { guildId, voiceChannelId: vcId, log: [] };
-    await this.save();
+    await this.save('runtime');
   }
 
   async deleteActiveChannel(tcId: string): Promise<void> {
     delete this.getState().activeChannels[tcId];
-    await this.save();
+    await this.save('runtime');
   }
 
   getLog(tcId: string): LogEntry[] | undefined {
@@ -54,7 +54,7 @@ export class KikisenRepository extends BaseRepository {
       edits: [],
       deleted: false,
     });
-    await this.save();
+    await this.save('runtime');
   }
 
   async logMessageUpdate(tcId: string, newMessage: Message): Promise<void> {
@@ -66,7 +66,7 @@ export class KikisenRepository extends BaseRepository {
         timestamp: newMessage.editedTimestamp,
         content: newMessage.content,
       });
-      await this.save();
+      await this.save('runtime');
     }
   }
 
@@ -76,7 +76,7 @@ export class KikisenRepository extends BaseRepository {
     const logEntry = entry.log.find((l) => l.id === messageId);
     if (logEntry) {
       logEntry.deleted = true;
-      await this.save();
+      await this.save('runtime');
     }
   }
 }

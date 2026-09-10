@@ -5,7 +5,7 @@ export class RolePanelRepository extends BaseRepository {
   async addRolePanel(messageId: string, data: RolePanelData): Promise<void> {
     if (!this.getState().rolePanels) this.getState().rolePanels = {};
     this.getState().rolePanels[messageId] = data;
-    await this.save();
+    await this.save('settings');
   }
 
   async getRolePanel(messageId: string): Promise<RolePanelData | undefined> {
@@ -15,7 +15,7 @@ export class RolePanelRepository extends BaseRepository {
   async removeRolePanel(messageId: string): Promise<void> {
     if (this.getState().rolePanels?.[messageId]) {
       delete this.getState().rolePanels[messageId];
-      await this.save();
+      await this.save('settings');
     }
   }
 }

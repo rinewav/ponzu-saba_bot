@@ -10,7 +10,7 @@ export class AfkRepository extends BaseRepository {
     const gs = this.getGuildSettings(guildId);
     if (!gs.afk) gs.afk = {};
     Object.assign(gs.afk, settings);
-    await this.save();
+    await this.save('settings');
   }
 
   async addAfkExcludedChannel(guildId: string, channelId: string): Promise<void> {
@@ -20,14 +20,14 @@ export class AfkRepository extends BaseRepository {
     if (!gs.afk.afkExcludedChannels.includes(channelId)) {
       gs.afk.afkExcludedChannels.push(channelId);
     }
-    await this.save();
+    await this.save('settings');
   }
 
   async removeAfkExcludedChannel(guildId: string, channelId: string): Promise<void> {
     const excluded = this.getState().guildSettings[guildId]?.afk?.afkExcludedChannels;
     if (excluded) {
       this.getState().guildSettings[guildId].afk!.afkExcludedChannels = excluded.filter((id) => id !== channelId);
-      await this.save();
+      await this.save('settings');
     }
   }
 }

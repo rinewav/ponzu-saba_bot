@@ -3,6 +3,13 @@ import type { VerificationSettings, VerificationApplication } from '../../types/
 
 type AppMap = Record<string, VerificationApplication>;
 
+const INACTIVE_STATUSES: ReadonlyArray<VerificationApplication['status']> = ['rejected', 'archived', 'completed'];
+
+/** 申請が「終了済み（アクティブでない）」かどうか */
+export function isInactiveStatus(status: VerificationApplication['status']): boolean {
+  return INACTIVE_STATUSES.includes(status);
+}
+
 export class VerificationRepository extends BaseRepository {
   private getApps(): AppMap {
     const state = this.getState() as unknown as Record<string, AppMap>;
@@ -16,7 +23,7 @@ export class VerificationRepository extends BaseRepository {
 
   async setVerificationSettings(guildId: string, settings: VerificationSettings): Promise<void> {
     this.getGuildSettings(guildId).verification = settings;
-    await this.save();
+    await this.save('settings');
   }
 
   getApplication(appId: string): VerificationApplication | undefined {
@@ -30,17 +37,17 @@ export class VerificationRepository extends BaseRepository {
 
   getActiveApplicationByUser(guildId: string, userId: string): VerificationApplication | undefined {
     return Object.values(this.getApps())
-      .find(app => app.guildId === guildId && app.userId === userId && app.status !== 'rejected' && app.status !== 'completed');
+      .find(app => app.guildId === guildId && app.userId === userId && !isInactiveStatus(app.status));
   }
 
   async setApplication(appId: string, application: VerificationApplication): Promise<void> {
     this.getApps()[appId] = application;
-    await this.save();
+    await this.save('applications');
   }
 
   async deleteApplication(appId: string): Promise<void> {
     delete this.getApps()[appId];
-    await this.save();
+    await this.save('applications');
   }
 
   getApplicationByNdaToken(token: string): VerificationApplication | undefined {
@@ -59,7 +66,7 @@ export class VerificationRepository extends BaseRepository {
       settings.bypassList.push(userId);
     }
     this.getGuildSettings(guildId).verification = settings;
-    await this.save();
+    await this.save('settings');
   }
 
   async removeBypass(guildId: string, userId: string): Promise<void> {
@@ -68,7 +75,7 @@ export class VerificationRepository extends BaseRepository {
       settings.bypassList = settings.bypassList.filter(id => id !== userId);
     }
     this.getGuildSettings(guildId).verification = settings;
-    await this.save();
+    await this.save('settings');
   }
 
   getAllApplications(guildId: string): VerificationApplication[] {

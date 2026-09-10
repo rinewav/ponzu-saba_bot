@@ -10,7 +10,7 @@ export class VcNotifyRepository extends BaseRepository {
     const gs = this.getGuildSettings(guildId);
     if (!gs.vcNotify) gs.vcNotify = {};
     Object.assign(gs.vcNotify, settings);
-    await this.save();
+    await this.save('settings');
   }
 
   async addVcNotifyExcludedChannel(guildId: string, channelId: string): Promise<void> {

@@ -4,6 +4,12 @@ import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import { dailyStatsRepo } from './repositories/index.js';
 import { CustomEmbed } from './customEmbed.js';
 
+const JST_HOUR_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Tokyo',
+  hour: 'numeric',
+  hour12: false,
+});
+
 interface VoiceSession {
   channelId: string;
   joinedAt: number;
@@ -19,7 +25,7 @@ export class DailyStatsManager {
 
     cron.schedule('50 23 * * *', () => {
       console.log('[DailyStats] デイリーレポートの送信時間です。');
-      this.sendAllReports();
+      void this.sendAllReports().catch(err => console.error('[DailyStats] レポート送信エラー:', err));
     }, { timezone: 'Asia/Tokyo' });
   }
 
@@ -104,7 +110,11 @@ export class DailyStatsManager {
   async sendAllReports(): Promise<void> {
     if (!this.client) return;
     for (const guild of this.client.guilds.cache.values()) {
-      await this.generateAndSendReport(guild, true);
+      try {
+        await this.generateAndSendReport(guild, true);
+      } catch (err) {
+        console.error(`[DailyStats] レポート生成エラー (Guild: ${guild.id}):`, err);
+      }
     }
   }
 
@@ -128,7 +138,7 @@ export class DailyStatsManager {
     }
 
     const embed = new CustomEmbed()
-      .setTitle(`📈 ${new Date().toLocaleDateString('ja-JP')} のサーバー活動レポート`)
+      .setTitle(`📈 ${new Date().toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })} のサーバー活動レポート`)
       .setDescription('本日1日のサーバー活動の概要です。');
 
     const userActivity = statsData.userActivity || {};
@@ -164,7 +174,7 @@ export class DailyStatsManager {
     const hourlyData = Array(24).fill(0);
     for (const session of sessions) {
       const start = new Date(session.startedAt);
-      const startHour = start.getHours();
+      const startHour = Number(JST_HOUR_FORMATTER.format(start)) % 24;
       const durationHours = session.duration / (1000 * 60 * 60);
 
       for (let i = 0; i < Math.ceil(durationHours); i++) {

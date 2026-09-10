@@ -1,19 +1,19 @@
 import { BaseRepository } from './baseRepository.js';
-import type { ReuploadSettings, RebanSettings, VoiceRoleSettings, ChannelTemplateSettings } from '../../types/index.js';
+import type { ReuploadSettings, RebanSettings, VirusScanSettings, VoiceRoleSettings, ChannelTemplateSettings, WelcomeMessageRef } from '../../types/index.js';
 
 export class MiscRepository extends BaseRepository {
   // --- Log ---
   async setLogChannelId(guildId: string, channelId: string): Promise<void> {
     const gs = this.getGuildSettings(guildId);
     gs.logChannelId = channelId;
-    await this.save();
+    await this.save('settings');
   }
 
   async setLogSettings(guildId: string, settings: Record<string, boolean>): Promise<void> {
     const gs = this.getGuildSettings(guildId);
     if (!gs.logging) gs.logging = {};
     Object.assign(gs.logging, settings);
-    await this.save();
+    await this.save('settings');
   }
 
   getLogSettings(guildId: string): Record<string, boolean> | undefined {
@@ -29,7 +29,7 @@ export class MiscRepository extends BaseRepository {
     const gs = this.getGuildSettings(guildId);
     if (!gs.voiceRole) gs.voiceRole = {};
     Object.assign(gs.voiceRole, settings);
-    await this.save();
+    await this.save('settings');
   }
 
   getVoiceRoleSettings(guildId: string): VoiceRoleSettings | undefined {
@@ -37,20 +37,29 @@ export class MiscRepository extends BaseRepository {
   }
 
   // --- Welcome ---
-  async setWelcomeMessageId(userId: string, messageId: string): Promise<void> {
+  async setWelcomeMessageId(userId: string, messageId: string, channelId: string): Promise<void> {
     if (!this.getState().welcomeMessages) this.getState().welcomeMessages = {};
-    this.getState().welcomeMessages[userId] = messageId;
-    await this.save();
+    this.getState().welcomeMessages[userId] = { messageId, channelId };
+    await this.save('runtime');
   }
 
-  getWelcomeMessageId(userId: string): string | undefined {
-    return this.getState().welcomeMessages?.[userId];
+  getWelcomeMessage(userId: string): WelcomeMessageRef | undefined {
+    const value = this.getState().welcomeMessages?.[userId];
+    if (!value) return undefined;
+    // 旧形式(messageId の文字列のみ)は当時の削除先チャンネルを補完する
+    if (typeof value === 'string') {
+      return {
+        messageId: value,
+        channelId: process.env.LEAVE_CHANNEL_ID ?? process.env.WELCOME_CHANNEL_ID ?? '',
+      };
+    }
+    return value;
   }
 
   async removeWelcomeMessageId(userId: string): Promise<void> {
     if (this.getState().welcomeMessages?.[userId]) {
       delete this.getState().welcomeMessages[userId];
-      await this.save();
+      await this.save('runtime');
     }
   }
 
@@ -62,13 +71,13 @@ export class MiscRepository extends BaseRepository {
   async addCrossPostTarget(guildId: string, channelId: string): Promise<void> {
     if (!this.getState().crossPostTargets) this.getState().crossPostTargets = {};
     this.getState().crossPostTargets[guildId] = channelId;
-    await this.save();
+    await this.save('settings');
   }
 
   async removeCrossPostTarget(guildId: string): Promise<void> {
     if (this.getState().crossPostTargets?.[guildId]) {
       delete this.getState().crossPostTargets[guildId];
-      await this.save();
+      await this.save('settings');
     }
   }
 
@@ -79,7 +88,7 @@ export class MiscRepository extends BaseRepository {
 
   async setReuploadSettings(guildId: string, settings: ReuploadSettings): Promise<void> {
     this.getGuildSettings(guildId).reupload = settings;
-    await this.save();
+    await this.save('settings');
   }
 
   // --- Reban ---
@@ -91,7 +100,19 @@ export class MiscRepository extends BaseRepository {
     const gs = this.getGuildSettings(guildId);
     if (!gs.rebanOnLeave) gs.rebanOnLeave = {};
     Object.assign(gs.rebanOnLeave, settings);
-    await this.save();
+    await this.save('settings');
+  }
+
+  // --- Virus Scan ---
+  getVirusScanSettings(guildId: string): VirusScanSettings | undefined {
+    return this.getState().guildSettings[guildId]?.virusScan;
+  }
+
+  async setVirusScanSettings(guildId: string, settings: Partial<VirusScanSettings>): Promise<void> {
+    const gs = this.getGuildSettings(guildId);
+    if (!gs.virusScan) gs.virusScan = {};
+    Object.assign(gs.virusScan, settings);
+    await this.save('settings');
   }
 
   // --- Locked Nicknames ---
@@ -104,13 +125,13 @@ export class MiscRepository extends BaseRepository {
     if (!this.getState().lockedNicknames) this.getState().lockedNicknames = {};
     if (!this.getState().lockedNicknames![guildId]) this.getState().lockedNicknames![guildId] = {};
     this.getState().lockedNicknames![guildId]![userId] = nickname ?? '';
-    await this.save();
+    await this.save('settings');
   }
 
   async removeLockedNickname(guildId: string, userId: string): Promise<void> {
     if (this.getState().lockedNicknames?.[guildId]?.[userId]) {
       delete this.getState().lockedNicknames![guildId]![userId];
-      await this.save();
+      await this.save('settings');
     }
   }
 
@@ -164,14 +185,14 @@ export class MiscRepository extends BaseRepository {
       }
       target[key] = value;
     }
-    await this.save();
+    await this.save('settings');
   }
 
   async clearTemplateSettingForChannel(guildId: string, channelId: string) {
     const guild = this.getState().guildSettings[guildId];
     if (guild?.templatesByChannel?.[channelId]) {
       delete guild.templatesByChannel[channelId];
-      await this.save();
+      await this.save('settings');
     }
   }
 
@@ -192,13 +213,13 @@ export class MiscRepository extends BaseRepository {
       }
       target[key] = value;
     }
-    await this.save();
+    await this.save('settings');
   }
 
   async clearTemplateSetting(guildId: string, templateKey: string) {
     if (this.getState().guildSettings[guildId]?.templates?.[templateKey]) {
       delete this.getState().guildSettings[guildId].templates![templateKey];
-      await this.save();
+      await this.save('settings');
     }
   }
 }
