@@ -9,6 +9,7 @@ import {
 } from 'discord.js';
 import type { BotCommand, VerificationApplication } from '../../types/index.js';
 import { verificationRepo } from '../../lib/repositories/index.js';
+import { isInactiveStatus } from '../../lib/repositories/verificationRepo.js';
 import { verificationManager, type NdaPdfBundle, type TicketFinalizeResult } from '../../lib/verificationManager.js';
 import { CustomEmbed, EMBED_COLORS } from '../../lib/customEmbed.js';
 
@@ -110,12 +111,19 @@ function finalizeLabel(action: TicketFinalizeResult, categoryName?: string): str
   }
 }
 
-/** 移行対象: 署名済みで、記録保存・DM送付・チケット後処理のいずれかが未完了のもの */
+/**
+ * 移行対象:
+ * - 署名済みで、記録保存・DM送付・チケット後処理のいずれかが未完了のもの
+ * - 未署名でチケットが残っているもの（退出済みの場合のみ実際に処理される）
+ */
 function isMigrateTarget(app: VerificationApplication): boolean {
-  if (app.status !== 'completed') return false;
-  if (!app.ndaArchived) return true;
-  if (!app.ndaDmDelivered) return true;
-  return !!app.ticketChannelId && !app.ticketFinalized;
+  if (app.status === 'completed') {
+    if (!app.ndaArchived) return true;
+    if (!app.ndaDmDelivered) return true;
+    return !!app.ticketChannelId && !app.ticketFinalized;
+  }
+  if (!isInactiveStatus(app.status)) return !!app.ticketChannelId;
+  return false;
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -134,6 +142,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     case 'status': {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       await guild.channels.fetch();
+      await guild.members.fetch();
 
       const settings = await verificationRepo.getVerificationSettings(guildId);
       const apps = verificationRepo.getAllApplications(guildId);
@@ -141,6 +150,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       const unfinalized = completed.filter(a => !a.ticketFinalized && a.ticketChannelId);
       const dmPending = completed.filter(a => !a.ndaDmDelivered);
       const archivePending = completed.filter(a => !a.ndaArchived);
+      const leftUnprocessed = completed.filter(
+        a => !guild.members.cache.has(a.userId) && !a.ticketFinalized,
+      );
+      const leftUnsigned = apps.filter(
+        a => !isInactiveStatus(a.status) && !guild.members.cache.has(a.userId),
+      );
 
       const archiveIds = settings?.ticketArchiveCategoryIds ?? [];
       const archiveLines = archiveIds.length > 0
@@ -158,6 +173,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           { name: 'うちチケット未処理', value: `${unfinalized.length}件`, inline: true },
           { name: 'うちDM未送付', value: `${dmPending.length}件`, inline: true },
           { name: 'うちアーカイブ未投稿', value: `${archivePending.length}件`, inline: true },
+          { name: '退出済みで未処理', value: `${leftUnprocessed.length}件`, inline: true },
+          { name: '未署名のまま退出', value: `${leftUnsigned.length}件`, inline: true },
           { name: 'チケットカテゴリ', value: ticketCategoryLine, inline: false },
           { name: 'アーカイブ先カテゴリ', value: archiveLines, inline: false },
         );
@@ -185,6 +202,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       await guild.channels.fetch();
+      await guild.members.fetch();
 
       const targets = verificationRepo.getAllApplications(guildId).filter(isMigrateTarget);
 
@@ -216,9 +234,34 @@ async function runDryRun(
   let archiveCount = 0;
   let dmCount = 0;
   let ticketCount = 0;
+  let leftCompletedCount = 0;
+  let leftUnsignedCount = 0;
 
   for (const [index, app] of targets.entries()) {
     const actions: string[] = [];
+    const member = await guild.members.fetch(app.userId).catch(() => null);
+
+    if (!member) {
+      if (app.status === 'completed') {
+        leftCompletedCount++;
+        actions.push('退出者: 記録投稿→チケット削除');
+      } else {
+        leftUnsignedCount++;
+        actions.push('退出者(未署名): チケット・申請削除');
+      }
+
+      if (index < MAX_PREVIEW_LINES) {
+        lines.push(`<@${app.userId}>: ${actions.join(' / ')}`);
+      }
+      continue;
+    }
+
+    if (app.status !== 'completed') {
+      if (index < MAX_PREVIEW_LINES) {
+        lines.push(`<@${app.userId}>: スキップ（在籍中の未署名）`);
+      }
+      continue;
+    }
 
     if (!app.ndaArchived) {
       archiveCount++;
@@ -246,7 +289,9 @@ async function runDryRun(
   let desc = `**対象**: ${targets.length}件\n`
     + `**記録投稿予定**: ${archiveCount}件\n`
     + `**DM送付予定**: ${dmCount}件\n`
-    + `**チケット後処理予定**: ${ticketCount}件`;
+    + `**チケット後処理予定**: ${ticketCount}件\n`
+    + `**退出者チケット削除予定**: ${leftCompletedCount}件\n`
+    + `**未署名退出者削除予定**: ${leftUnsignedCount}件`;
 
   if (lines.length > 0) {
     desc += `\n\n**内訳（最大${MAX_PREVIEW_LINES}件）**:\n${lines.join('\n')}`;
@@ -272,11 +317,46 @@ async function runMigrate(
   let dmFailed = 0;
   let deleted = 0;
   let moved = 0;
+  let leftDeleted = 0;
+  let leftUnsignedDeleted = 0;
   let errorCount = 0;
+  /** resetUserApplication は同一ユーザーの申請をまとめて削除するため、二重処理を避ける */
+  const resetUsers = new Set<string>();
 
   for (const [index, app] of targets.entries()) {
     try {
       const member = await guild.members.fetch(app.userId).catch(() => null);
+
+      // 退出済みメンバーはDM送付もアーカイブ移動も行わず、記録を残してチケットを削除する
+      if (!member) {
+        if (app.status === 'completed') {
+          const result = await verificationManager.archiveAndDeleteTicketForLeftMember(app, guild);
+          if (result === 'skipped') {
+            errorCount++;
+            errors.push(`<@${app.userId}>: 退出者のNDA記録を保存できずチケットを残しました`);
+          } else {
+            leftDeleted++;
+          }
+        } else if (!resetUsers.has(app.userId)) {
+          resetUsers.add(app.userId);
+          const { deletedApps } = await verificationManager.resetUserApplication(guild.id, app.userId);
+          if (deletedApps > 0) leftUnsignedDeleted += deletedApps;
+        }
+
+        if (index < targets.length - 1) {
+          await sleep(MIGRATE_DELAY_MS);
+        }
+        continue;
+      }
+
+      // 在籍中の未署名申請には手を加えない
+      if (app.status !== 'completed') {
+        if (index < targets.length - 1) {
+          await sleep(MIGRATE_DELAY_MS);
+        }
+        continue;
+      }
+
       const needsPdf = !app.ndaArchived || !app.ndaDmDelivered;
 
       let pdf: NdaPdfBundle | null = null;
@@ -295,20 +375,15 @@ async function runMigrate(
       }
 
       if (!app.ndaDmDelivered && pdf) {
-        if (!member) {
-          errorCount++;
-          errors.push(`<@${app.userId}>: メンバーが見つからずDMを送れませんでした`);
+        // 既存メンバーのため、ロール付与とウェルカム通知は行わない
+        const ok = await verificationManager.sendNdaDm(member, app, pdf);
+        if (ok) {
+          dmSuccess++;
         } else {
-          // 既存メンバーのため、ロール付与とウェルカム通知は行わない
-          const ok = await verificationManager.sendNdaDm(member, app, pdf);
-          if (ok) {
-            dmSuccess++;
-          } else {
-            dmFailed++;
-            const channel = await verificationManager.fetchTicketChannel(app, guild);
-            if (channel && !(await hasDmInstruction(channel))) {
-              await verificationManager.postDmInstruction(app, channel);
-            }
+          dmFailed++;
+          const channel = await verificationManager.fetchTicketChannel(app, guild);
+          if (channel && !(await hasDmInstruction(channel))) {
+            await verificationManager.postDmInstruction(app, channel);
           }
         }
       }
@@ -334,6 +409,8 @@ async function runMigrate(
     + `**DM失敗**: ${dmFailed}件\n`
     + `**チケット削除**: ${deleted}件\n`
     + `**チケット移動**: ${moved}件\n`
+    + `**退出者チケット削除**: ${leftDeleted}件\n`
+    + `**未署名退出者削除**: ${leftUnsignedDeleted}件\n`
     + `**エラー**: ${errorCount}件`;
 
   if (errors.length > 0) {

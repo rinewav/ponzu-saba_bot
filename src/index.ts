@@ -34,6 +34,7 @@ import messageUpdate from './events/messageUpdate.js';
 import messageVirusScan from './events/messageVirusScan.js';
 import rebanHandler from './events/rebanHandler.js';
 import statsTracker from './events/statsTracker.js';
+import verificationMemberRemove from './events/verificationMemberRemove.js';
 
 const commands: BotCommand[] = [
   cleanup, setup, kikisenManage, levelEdit, reload,
@@ -45,7 +46,7 @@ const events: (BotEvent | BotEvent[])[] = [
   guildMemberRemove, voiceStateUpdate, afkActivityTracker,
   afkNicknameHandler, autoCleanupOnLeave,
   levelMessageCreate, loggingHandler, messageDelete, messageUpdate,
-  messageVirusScan, rebanHandler, statsTracker,
+  messageVirusScan, rebanHandler, statsTracker, verificationMemberRemove,
 ];
 
 const client = new Client({

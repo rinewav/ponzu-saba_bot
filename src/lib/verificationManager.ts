@@ -2,6 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import {
   type Client,
   GuildMember,
+  type PartialGuildMember,
   type Guild,
   type ButtonInteraction,
   type ModalSubmitInteraction,
@@ -91,6 +92,92 @@ export class VerificationManager {
       }
       return;
     }
+  }
+
+  /**
+   * メンバー退出時の処理。
+   * 署名済み（completed）の申請はNDA記録だけ残してチケットを削除し、
+   * 未署名の申請はチケットごと削除する。呼び出し元に例外は伝播しない。
+   */
+  async handleMemberLeave(member: GuildMember | PartialGuildMember): Promise<void> {
+    try {
+      if (member.user?.bot) return;
+
+      const guild = member.guild;
+      if (!guild) return;
+
+      const guildId = guild.id;
+      const userId = member.id;
+      const label = member.user?.tag ?? userId;
+
+      const applications = verificationRepo.getApplicationsByUser(guildId, userId);
+      const completedTargets = applications.filter(
+        app => app.status === 'completed'
+          && ((!!app.ticketChannelId && !app.ticketFinalized) || !app.ndaArchived),
+      );
+
+      for (const app of completedTargets) {
+        try {
+          await this.archiveAndDeleteTicketForLeftMember(app, guild);
+        } catch (error) {
+          console.error(`[Verification] 退出者 ${label} の署名済みチケットの処理に失敗しました:`, error);
+        }
+      }
+
+      try {
+        const { deletedApps } = await this.resetUserApplication(guildId, userId);
+        if (deletedApps > 0) {
+          console.log(`[Verification] 退出により ${label} の未完了申請 ${deletedApps}件とチケットを削除しました。`);
+        }
+      } catch (error) {
+        console.error(`[Verification] 退出者 ${label} の未完了申請の削除に失敗しました:`, error);
+      }
+    } catch (error) {
+      console.error('[Verification] 退出時の申請処理でエラーが発生しました:', error);
+    }
+  }
+
+  /**
+   * 退出済みメンバーの署名済みチケットを、NDA記録だけ残して削除する。
+   * 記録を残せなかった場合はチケットを削除せず 'skipped' を返し、後から再実行できるようにする。
+   */
+  async archiveAndDeleteTicketForLeftMember(
+    application: VerificationApplication,
+    guild: Guild,
+  ): Promise<'deleted' | 'archived_only' | 'skipped'> {
+    if (!application.ndaArchived) {
+      let pdf: NdaPdfBundle;
+      try {
+        pdf = await this.buildNdaPdf(application);
+      } catch (error) {
+        console.warn(
+          `[Verification] 退出者 ${application.userId} のNDA記録PDFを生成できなかったため、チケットを残しました:`,
+          error,
+        );
+        return 'skipped';
+      }
+
+      const posted = await this.postNdaArchiveRecord(application, pdf);
+      if (!posted) {
+        console.warn(`[Verification] 退出者 ${application.userId} のNDA記録を保存できなかったため、チケットを残しました。`);
+        return 'skipped';
+      }
+    }
+
+    const channel = await this.fetchTicketChannel(application, guild);
+    if (!channel) {
+      application.ticketChannelId = undefined;
+      application.ticketFinalized = true;
+      await verificationRepo.setApplication(application.id, application);
+      return 'archived_only';
+    }
+
+    await channel.delete('退出済みメンバーのチケットを削除（NDA記録は保存済み）');
+    application.ticketChannelId = undefined;
+    application.ticketFinalized = true;
+    await verificationRepo.setApplication(application.id, application);
+    console.log(`[Verification] 退出者 ${application.userId} のチケット #${channel.name} を削除しました（NDA記録は保存済み）。`);
+    return 'deleted';
   }
 
   async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
