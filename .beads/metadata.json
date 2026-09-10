@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "ponzu_saba_bot",
+  "project_id": "de78b20a-eaf8-46d5-ba3c-36cf81a109d9"
+}
