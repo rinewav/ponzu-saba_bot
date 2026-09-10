@@ -35,7 +35,7 @@ export class CleanupManager {
     const contentMatches = message.content.matchAll(mentionRegex);
     for (const match of contentMatches) ids.add(match[1]);
     for (const embed of message.embeds) {
-      const textToCheck = [embed.description, embed.title, ...embed.fields.flatMap(f => [f.name, f.value]), embed.footer?.text, embed.author?.name].filter((t): t is string => t !== null);
+      const textToCheck = [embed.description, embed.title, ...embed.fields.flatMap(f => [f.name, f.value]), embed.footer?.text, embed.author?.name].filter((t): t is string => typeof t === 'string');
       for (const text of textToCheck) {
         const embedMatches = text.matchAll(mentionRegex);
         for (const match of embedMatches) ids.add(match[1]);
